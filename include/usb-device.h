@@ -20,7 +20,7 @@
 #define USB_PKT_SIZE        64
 #define USB_HID_IN_EP       (0x01 | USB_EPDIR_IN)
 #define USB_HID_OUT_EP      (0x01 | USB_EPDIR_OUT)
-#define USB_CDC_CTRL_EP     (0x02 | USB_EPDIR_IN)
+#define USB_CDC_CTRL_EP     (0x02 | USB_EPDIR_OUT)
 #define USB_CDC_DATA_IN_EP  (0x03 | USB_EPDIR_IN)
 #define USB_CDC_DATA_OUT_EP (0x03 | USB_EPDIR_OUT)
 
@@ -47,9 +47,9 @@ __attribute__((packed)) struct usb_device_config_descriptor
 	struct usb_iad_descriptor       cdc_iad_descriptor;
 	struct usb_interface_descriptor cdc_ctrl_interface_descriptor;
     struct usb_cdc_header_desc      cdc_header_descriptor;
+    struct usb_cdc_call_mgmt_desc   cdc_call_management_descriptor;
     struct usb_cdc_acm_desc         cdc_acm_descriptor;
     struct usb_cdc_union_desc       cdc_union_descriptor;
-    struct usb_cdc_call_mgmt_desc   cdc_call_management_descriptor;
     struct usb_endpoint_descriptor  cdc_ep_ctrl_descriptor;
     struct usb_interface_descriptor cdc_data_interface_descriptor;
     struct usb_endpoint_descriptor  cdc_ep_data_rx_descriptor;
@@ -201,6 +201,14 @@ static const struct usb_device_config_descriptor usb_device_config_desc =
 		        .bDescriptorSubType  = USB_DTYPE_CDC_HEADER,
 		        .bcdCDC              = VERSION_BCD(1,1,0)
 		},
+		.cdc_call_management_descriptor =
+		{
+		        .bFunctionLength     = sizeof(struct usb_cdc_call_mgmt_desc),
+		        .bDescriptorType     = USB_DTYPE_CS_INTERFACE,
+		        .bDescriptorSubType  = USB_DTYPE_CDC_CALL_MANAGEMENT,
+		        .bmCapabilities      = 0,
+		        .bDataInterface      = 1
+		},
 	    .cdc_acm_descriptor =
 	    {
 	        .bFunctionLength         = sizeof(struct usb_cdc_acm_desc),
@@ -216,14 +224,6 @@ static const struct usb_device_config_descriptor usb_device_config_desc =
 	        .bMasterInterface0       = 1,
 	        .bSlaveInterface0        = 2,
 	    },
-		.cdc_call_management_descriptor =
-		{
-		        .bFunctionLength     = sizeof(struct usb_cdc_call_mgmt_desc),
-		        .bDescriptorType     = USB_DTYPE_CS_INTERFACE,
-		        .bDescriptorSubType  = USB_DTYPE_CDC_CALL_MANAGEMENT,
-		        .bmCapabilities      = 0,
-		        .bDataInterface      = 2
-		},
 		.cdc_ep_ctrl_descriptor =
 		{
 		        .bLength             = sizeof(struct usb_endpoint_descriptor),
