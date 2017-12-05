@@ -25,11 +25,6 @@ usbd_respond usb_hid_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_callba
 			dev->status.data_count = sizeof(usb_hid_report_descriptor);
 			return usbd_ack;
 
-		case USB_DTYPE_QUALIFIER:
-			dev->status.data_ptr = &usb_qualifier_desc;
-			dev->status.data_count = sizeof(usb_qualifier_desc);
-			return usbd_ack;
-
 		default:
 			return usbd_fail;
 		}
@@ -40,5 +35,9 @@ usbd_respond usb_hid_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_callba
 
 void usb_hid_handle(usbd_device *dev, uint8_t event, uint8_t ep)
 {
-
+	switch (event)
+	{
+	case usbd_evt_eptx:
+		usbd_ep_write(dev, USB_HID_IN_EP, NULL, 0);
+	}
 }

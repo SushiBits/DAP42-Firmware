@@ -60,10 +60,6 @@ static usbd_respond usb_get_descriptor(usbd_ctlreq *req, void **address, uint16_
 		len = sizeof(usb_device_config_desc);
 		break;
 
-	case USB_DTYPE_QUALIFIER:
-		buf = &usb_qualifier_desc;
-		break;
-
 	case USB_DTYPE_STRING:
 		if (descriptor_idx < sizeof(usb_string_table) / sizeof(struct usb_string_descriptor))
 			buf = usb_string_table[descriptor_idx];

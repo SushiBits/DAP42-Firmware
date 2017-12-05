@@ -56,6 +56,7 @@ void usb_cdc_handle(usbd_device *dev, uint8_t event, uint8_t ep)
             memmove(&fifo[0], &fifo[_t], fpos - _t);
             fpos -= _t;
         }
+        break;
     case usbd_evt_eprx:
         if (fpos < (sizeof(fifo) - USB_PKT_SIZE)) {
             _t = usbd_ep_read(dev, USB_CDC_DATA_OUT_EP, &fifo[fpos], USB_PKT_SIZE);
@@ -63,6 +64,7 @@ void usb_cdc_handle(usbd_device *dev, uint8_t event, uint8_t ep)
                 fpos += _t;
             }
         }
+        break;
     default:
         break;
     }

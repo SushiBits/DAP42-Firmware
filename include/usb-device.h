@@ -76,19 +76,6 @@ static const struct usb_device_descriptor usb_device_desc =
 	    .bNumConfigurations = 1
 };
 
-static const struct usb_qualifier_descriptor usb_qualifier_desc =
-{
-	    .bLength            = sizeof(struct usb_qualifier_descriptor),
-	    .bDescriptorType    = USB_DTYPE_QUALIFIER,
-	    .bcdUSB             = VERSION_BCD(2, 0, 0),
-	    .bDeviceClass       = USB_CLASS_PER_INTERFACE,
-	    .bDeviceSubClass    = USB_SUBCLASS_NONE,
-	    .bDeviceProtocol    = USB_PROTO_NONE,
-	    .bMaxPacketSize0    = USB_PKT_SIZE,
-	    .bNumConfigurations = 1,
-	    .bReserved          = 0
-};
-
 static const uint8_t usb_hid_report_descriptor[] =
 {
 	    0x06, 0x00, 0xff,              // USAGE_PAGE (Vendor Defined Page 1)
@@ -178,8 +165,8 @@ static const struct usb_device_config_descriptor usb_device_config_desc =
 			    .bFirstInterface     = 1,
 			    .bInterfaceCount     = 2,
 			    .bFunctionClass      = USB_CLASS_CDC,
-			    .bFunctionSubClass   = USB_SUBCLASS_NONE,
-			    .bFunctionProtocol   = USB_PROTO_NONE,
+			    .bFunctionSubClass   = USB_CDC_SUBCLASS_ACM,
+			    .bFunctionProtocol   = USB_CDC_PROTO_V25TER,
 			    .iFunction           = 4
 		},
 		.cdc_ctrl_interface_descriptor =
@@ -207,7 +194,7 @@ static const struct usb_device_config_descriptor usb_device_config_desc =
 		        .bDescriptorType     = USB_DTYPE_CS_INTERFACE,
 		        .bDescriptorSubType  = USB_DTYPE_CDC_CALL_MANAGEMENT,
 		        .bmCapabilities      = 0,
-		        .bDataInterface      = 1
+		        .bDataInterface      = 2
 		},
 	    .cdc_acm_descriptor =
 	    {
