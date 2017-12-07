@@ -202,7 +202,7 @@ static const struct usb_device_config_descriptor usb_device_config_desc =
 	        .bFunctionLength         = sizeof(struct usb_cdc_acm_desc),
 	        .bDescriptorType         = USB_DTYPE_CS_INTERFACE,
 	        .bDescriptorSubType      = USB_DTYPE_CDC_ACM,
-	        .bmCapabilities          = USB_CDC_CAP_LINE | USB_CDC_CAP_BRK,
+	        .bmCapabilities          = USB_CDC_CAP_LINE,
 	    },
 	    .cdc_union_descriptor =
 	    {

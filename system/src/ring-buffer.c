@@ -77,10 +77,6 @@ int ring_buffer_peekchar(ring_buffer_t buffer)
 	return ch;
 }
 
-int ring_buffer_read(ring_buffer_t buffer, void *buf, size_t len);
-int ring_buffer_peek(ring_buffer_t buffer, void *buf, size_t len);
-int ring_buffer_write(ring_buffer_t buffer, const void *buf, size_t len);
-
 int ring_buffer_drain(ring_buffer_t buffer)
 {
 	memset(buffer->buffer, 0, buffer->length);
