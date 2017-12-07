@@ -14,19 +14,20 @@
 
 void usb_hid_init(void)
 {
-
+	
 }
 
 void usb_hid_deinit(void)
 {
-
+	
 }
 
-usbd_respond usb_hid_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_callback *callback)
+usbd_respond usb_hid_control(usbd_device *dev, usbd_ctlreq *req,
+		usbd_rqc_callback *callback)
 {
 	uint8_t descriptor_type = (req->wValue & 0xff00) >> 8;
 	uint8_t descriptor_idx = req->wValue & 0xff;
-
+	
 	if (req->bRequest == USB_STD_GET_DESCRIPTOR)
 	{
 		switch (descriptor_type)
@@ -35,12 +36,12 @@ usbd_respond usb_hid_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_callba
 			dev->status.data_ptr = (void *)usb_hid_report_descriptor;
 			dev->status.data_count = sizeof(usb_hid_report_descriptor);
 			return usbd_ack;
-
+			
 		default:
 			return usbd_fail;
 		}
 	}
-
+	
 	return usbd_fail;
 }
 

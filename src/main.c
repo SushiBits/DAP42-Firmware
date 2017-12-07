@@ -9,5 +9,6 @@
 
 int main(void)
 {
-	for (;;);
+	for (;;)
+		;
 }
