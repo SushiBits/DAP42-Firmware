@@ -9,6 +9,7 @@
 
 #include <stm32f0xx.h>
 #include <stm32f0xx_it.h>
+
 #include "usb-device.h"
 
 void usb_hid_init(void)
