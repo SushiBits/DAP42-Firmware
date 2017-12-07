@@ -24,9 +24,10 @@
 #define USB_CDC_DATA_IN_EP  (0x03 | USB_EPDIR_IN)
 #define USB_CDC_DATA_OUT_EP (0x03 | USB_EPDIR_OUT)
 
+#include <stm32f0xx.h>
 #include <sys/cdefs.h>
 #include <stdint.h>
-#include <usb_std.h>
+#include <usb.h>
 #include <usb_cdc.h>
 #include <usb_hid.h>
 

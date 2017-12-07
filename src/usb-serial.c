@@ -10,7 +10,9 @@
 #include <stm32f0xx.h>
 #include <stm32f0xx_it.h>
 #include <string.h>
+
 #include "usb-device.h"
+#include "board.h"
 
 static struct usb_cdc_line_coding usb_cdc_line_coding = {
     .dwDTERate          = 115200,
@@ -18,6 +20,16 @@ static struct usb_cdc_line_coding usb_cdc_line_coding = {
     .bParityType        = USB_CDC_NO_PARITY,
     .bDataBits          = 8,
 };
+
+void usb_cdc_init(void)
+{
+
+}
+
+void usb_cdc_deinit(void)
+{
+
+}
 
 usbd_respond usb_cdc_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_callback *callback)
 {

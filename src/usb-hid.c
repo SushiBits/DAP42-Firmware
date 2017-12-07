@@ -11,6 +11,16 @@
 #include <stm32f0xx_it.h>
 #include "usb-device.h"
 
+void usb_hid_init(void)
+{
+
+}
+
+void usb_hid_deinit(void)
+{
+
+}
+
 usbd_respond usb_hid_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_callback *callback)
 {
 	uint8_t descriptor_type = (req->wValue & 0xff00) >> 8;
@@ -21,7 +31,7 @@ usbd_respond usb_hid_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_callba
 		switch (descriptor_type)
 		{
 		case USB_DTYPE_HID_REPORT:
-			dev->status.data_ptr = usb_hid_report_descriptor;
+			dev->status.data_ptr = (void *)usb_hid_report_descriptor;
 			dev->status.data_count = sizeof(usb_hid_report_descriptor);
 			return usbd_ack;
 
