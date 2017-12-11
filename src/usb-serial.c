@@ -16,22 +16,22 @@
 
 #include "usb-device.h"
 
+#define USART USART1
+
 RING_BUFFER_INIT_STATIC(usb_cdc_tx_buffer, 128);
 RING_BUFFER_INIT_STATIC(usb_cdc_rx_buffer, 128);
 
 static struct usb_cdc_line_coding usb_cdc_line_coding =
 { .dwDTERate = 115200, .bCharFormat = USB_CDC_1_STOP_BITS, .bParityType =
-		USB_CDC_NO_PARITY, .bDataBits = 8, };
+USB_CDC_NO_PARITY, .bDataBits = 8, };
 
 static void usb_cdc_set_usart(void);
 
 void usb_cdc_init(void)
 {
-	ring_buffer_drain(usb_cdc_tx_buffer);
-	ring_buffer_drain(usb_cdc_rx_buffer);
-	
 	RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
 	__DSB();
+	NVIC_EnableIRQ(USART1_IRQn);
 	
 	usb_cdc_line_coding.dwDTERate = 115200;
 	usb_cdc_line_coding.bCharFormat = USB_CDC_1_STOP_BITS;
@@ -39,7 +39,7 @@ void usb_cdc_init(void)
 	usb_cdc_line_coding.bDataBits = 8;
 	
 	usb_cdc_set_usart();
-
+	
 	pinMode(0x16, AFIO_PU(GPIO_MODE_AF0));
 	pinMode(0x17, AFIO_PU(GPIO_MODE_AF0));
 }
@@ -49,6 +49,7 @@ void usb_cdc_deinit(void)
 	pinMode(0x16, INPUT);
 	pinMode(0x17, INPUT);
 	
+	NVIC_DisableIRQ(USART1_IRQn);
 	RCC->APB2ENR &= ~RCC_APB2ENR_USART1EN;
 }
 
@@ -62,7 +63,7 @@ usbd_respond usb_cdc_control(usbd_device *dev, usbd_ctlreq *req,
 	switch (req->bRequest)
 	{
 	case USB_CDC_SET_LINE_CODING:
-		memmove(req->data, &usb_cdc_line_coding, sizeof(usb_cdc_line_coding));
+		memmove(&usb_cdc_line_coding, req->data, sizeof(usb_cdc_line_coding));
 		
 		// Validate data rate.
 		if (usb_cdc_line_coding.dwDTERate < SystemCoreClock / UINT16_MAX)
@@ -87,7 +88,7 @@ usbd_respond usb_cdc_control(usbd_device *dev, usbd_ctlreq *req,
 		}
 		
 		usb_cdc_set_usart();
-
+		
 		return usbd_ack;
 		
 	case USB_CDC_GET_LINE_CODING:
@@ -110,13 +111,121 @@ static void usb_cdc_set_usart(void)
 	__DSB();
 	RCC->APB2RSTR &= ~RCC_APB2RSTR_USART1RST;
 	__DSB();
+	
+	ring_buffer_drain(usb_cdc_tx_buffer);
+	ring_buffer_drain(usb_cdc_rx_buffer);
 
+	// Set the data bits register.
+	uint8_t data_bits = 8;
+	if (usb_cdc_line_coding.bParityType == USB_CDC_NO_PARITY)
+		data_bits = usb_cdc_line_coding.bDataBits;
+	else
+		data_bits = usb_cdc_line_coding.bDataBits + 1;
+	switch (data_bits)
+	{
+	case 7:
+		USART->CR1 = USART_CR1_M1;
+		break;
 
+	case 8:
+		USART->CR1 = 0;
+		break;
+
+	case 9:
+		USART->CR1 = USART_CR1_M0;
+		break;
+
+	default:
+		USART->CR1 = 0;
+		break;
+	}
+
+	// Set the parity bits register
+	switch (usb_cdc_line_coding.bParityType)
+	{
+	case USB_CDC_ODD_PARITY:
+		USART->CR1 |= USART_CR1_PCE | USART_CR1_PS;
+		break;
+
+	case USB_CDC_EVEN_PARITY:
+		USART->CR1 |= USART_CR1_PCE;
+		break;
+
+	default:
+		break;
+	}
+
+	// Set the stop bits register
+	switch (usb_cdc_line_coding.bCharFormat)
+	{
+	case USB_CDC_1_STOP_BITS:
+		USART->CR2 = 0x0 << USART_CR2_STOP_Pos;
+		break;
+
+	case USB_CDC_1_5_STOP_BITS:
+		USART->CR2 = 0x3 << USART_CR2_STOP_Pos;
+		break;
+
+	case USB_CDC_2_STOP_BITS:
+		USART->CR2 = 0x2 << USART_CR2_STOP_Pos;
+		break;
+
+	default:
+		USART->CR2 = 0x0 << USART_CR2_STOP_Pos;
+		break;
+	}
+
+	// Set the baudrate
+	USART->BRR = SystemCoreClock / usb_cdc_line_coding.dwDTERate;
+
+	USART->CR1 |= USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE;
+	__DSB();
+
+	USART->CR1 |= USART_CR1_UE;
 }
 
 void USART1_IRQHandler()
 {
+	if (USART->ISR & USART_ISR_RXNE)
+	{
+		if (USART->ISR & USART_ISR_PE)
+			USART->ICR = USART_ICR_PECF;
 
+		uint8_t ch = 0;
+		switch (usb_cdc_line_coding.bParityType)
+		{
+		case USB_CDC_MARK_PARITY:
+		case USB_CDC_SPACE_PARITY:
+		case USB_CDC_ODD_PARITY:
+		case USB_CDC_EVEN_PARITY:
+			ch = USART->RDR & ((1 << usb_cdc_line_coding.bDataBits) - 1);
+			break;
+
+		default:
+			ch = USART->RDR;
+		}
+
+		ring_buffer_putchar(usb_cdc_rx_buffer, ch);
+	}
+
+	if (USART->ISR & USART_ISR_TXE)
+	{
+		int ch = ring_buffer_getchar(usb_cdc_tx_buffer);
+		if (ch < 0)
+		{
+			USART->CR1 &= ~USART_CR1_TXEIE;
+		}
+		else
+		{
+			ch &= (1 << usb_cdc_line_coding.bDataBits) - 1;
+			if (usb_cdc_line_coding.bParityType == USB_CDC_MARK_PARITY)
+			{
+				ch |= (1 << usb_cdc_line_coding.bDataBits);
+			}
+
+			USART->TDR = ch;
+		}
+	}
 }
 
 void usb_cdc_handle(usbd_device *dev, uint8_t event, uint8_t ep)
@@ -125,7 +234,7 @@ void usb_cdc_handle(usbd_device *dev, uint8_t event, uint8_t ep)
 	switch (event)
 	{
 	case usbd_evt_eptx:
-		for (;;)
+		for (off_t count = 0; count < USB_PKT_SIZE; count++)
 		{
 			int rv = ring_buffer_peekchar(usb_cdc_rx_buffer);
 			if (rv > 0)
@@ -151,7 +260,8 @@ void usb_cdc_handle(usbd_device *dev, uint8_t event, uint8_t ep)
 			val = usbd_ep_read(dev, USB_CDC_DATA_OUT_EP, &ch, 1);
 			if (val > 0)
 			{
-				ring_buffer_putchar(usb_cdc_rx_buffer, ch);
+				ring_buffer_putchar(usb_cdc_tx_buffer, ch);
+				USART->CR1 |= USART_CR1_TXEIE;
 			}
 			else
 			{

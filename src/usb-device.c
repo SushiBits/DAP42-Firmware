@@ -115,11 +115,11 @@ static usbd_respond usb_set_config(usbd_device *dev, uint8_t cfg)
 		usb_hid_init();
 		
 		usbd_ep_config(dev, USB_CDC_CTRL_EP, USB_EPTYPE_INTERRUPT,
-				USB_PKT_SIZE);
+		USB_PKT_SIZE);
 		usbd_ep_config(dev, USB_CDC_DATA_IN_EP,
-				USB_EPTYPE_BULK, USB_PKT_SIZE);
+		USB_EPTYPE_BULK, USB_PKT_SIZE);
 		usbd_ep_config(dev, USB_CDC_DATA_OUT_EP,
-				USB_EPTYPE_BULK, USB_PKT_SIZE);
+		USB_EPTYPE_BULK, USB_PKT_SIZE);
 		usbd_reg_endpoint(dev, USB_CDC_DATA_IN_EP, usb_cdc_handle);
 		usbd_reg_endpoint(dev, USB_CDC_DATA_OUT_EP, usb_cdc_handle);
 		usbd_ep_write(dev, USB_CDC_DATA_IN_EP, NULL, 0);
