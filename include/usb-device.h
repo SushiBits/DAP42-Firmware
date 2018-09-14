@@ -104,7 +104,7 @@ static const struct usb_device_config_descriptor usb_device_config_desc =
 				.bConfigurationValue = 1,
 				.iConfiguration      = NO_DESCRIPTOR,
 		        .bmAttributes        = USB_CFG_ATTR_RESERVED | USB_CFG_ATTR_SELFPOWERED,
-		        .bMaxPower           = USB_CFG_POWER_MA(450)
+		        .bMaxPower           = USB_CFG_POWER_MA(150)
 		},
 
 		.hid_iad_descriptor =
@@ -199,18 +199,18 @@ static const struct usb_device_config_descriptor usb_device_config_desc =
 		},
 	    .cdc_acm_descriptor =
 	    {
-	        .bFunctionLength         = sizeof(struct usb_cdc_acm_desc),
-	        .bDescriptorType         = USB_DTYPE_CS_INTERFACE,
-	        .bDescriptorSubType      = USB_DTYPE_CDC_ACM,
-	        .bmCapabilities          = USB_CDC_CAP_LINE,
+	    		.bFunctionLength     = sizeof(struct usb_cdc_acm_desc),
+				.bDescriptorType     = USB_DTYPE_CS_INTERFACE,
+				.bDescriptorSubType  = USB_DTYPE_CDC_ACM,
+				.bmCapabilities      = USB_CDC_CAP_LINE,
 	    },
 	    .cdc_union_descriptor =
 	    {
-	        .bFunctionLength         = sizeof(struct usb_cdc_union_desc),
-	        .bDescriptorType         = USB_DTYPE_CS_INTERFACE,
-	        .bDescriptorSubType      = USB_DTYPE_CDC_UNION,
-	        .bMasterInterface0       = 1,
-	        .bSlaveInterface0        = 2,
+	    		.bFunctionLength     = sizeof(struct usb_cdc_union_desc),
+				.bDescriptorType     = USB_DTYPE_CS_INTERFACE,
+	        	.bDescriptorSubType  = USB_DTYPE_CDC_UNION,
+				.bMasterInterface0   = 1,
+				.bSlaveInterface0    = 2,
 	    },
 		.cdc_ep_ctrl_descriptor =
 		{

@@ -18,9 +18,10 @@ __BEGIN_DECLS
 
 void usb_cdc_init(void);
 void usb_cdc_deinit(void);
-usbd_respond usb_cdc_control(usbd_device *dev, usbd_ctlreq *req,
-		usbd_rqc_callback *callback);
+usbd_respond usb_cdc_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_callback *callback);
 void usb_cdc_handle(usbd_device *dev, uint8_t event, uint8_t ep);
+
+void dap_pump(void);
 
 __END_DECLS
 
