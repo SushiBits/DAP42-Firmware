@@ -6,5 +6,5 @@
 	url = git@github.com:SushiBits/platform-stm32f0.git
 [submodule "contrib/libusb_stm32"]
 	path = contrib/libusb_stm32
-	url = git@github.com:xcvista/libusb_stm32.git
-	branch = layout
+	url = git@github.com:dmitrystu/libusb_stm32.git
+	branch = master
