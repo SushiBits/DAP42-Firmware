@@ -92,7 +92,7 @@ This information includes:
 /// This configuration settings is used to optimize the communication performance with the
 /// debugger and depends on the USB peripheral. For devices with limited RAM or USB buffer the
 /// setting can be reduced (valid range is 1 .. 255).
-#define DAP_PACKET_COUNT        4U              ///< Specifies number of packets buffered.
+#define DAP_PACKET_COUNT        1U              ///< Specifies number of packets buffered.
 
 /// Indicate that UART Serial Wire Output (SWO) trace is available.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
@@ -201,9 +201,9 @@ Configures the DAP Hardware I/O pins for JTAG mode:
 static __inline void PORT_JTAG_SETUP(void)
 {
 	SET_FIELD(GPIOA->MODER,   0xfffc, 0x5504);
-	SET_FIELD(GPIOA->OTYPER,    0xfe,   0x02);
+	SET_FIELD(GPIOA->OTYPER,    0xfe,   0x82);
 	SET_FIELD(GPIOA->OSPEEDR, 0xfffc, 0xfffc);
-	SET_FIELD(GPIOA->PUPDR,   0xfffc, 0x0064);
+	SET_FIELD(GPIOA->PUPDR,   0xfffc, 0x4024);
 	SET_FIELD(GPIOA->ODR,       0xfe,   0xfa);
 }
 
@@ -217,7 +217,7 @@ static __inline void PORT_SWD_SETUP(void)
 	SET_FIELD(GPIOA->MODER,   0xfffc, 0x0504);
 	SET_FIELD(GPIOA->OTYPER,    0xfe,   0x02);
 	SET_FIELD(GPIOA->OSPEEDR, 0xfffc, 0xfffc);
-	SET_FIELD(GPIOA->PUPDR,   0xfffc, 0x0064);
+	SET_FIELD(GPIOA->PUPDR,   0xfffc, 0x0024);
 	SET_FIELD(GPIOA->ODR,       0xfe,   0xfa);
 }
 

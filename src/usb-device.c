@@ -29,7 +29,7 @@ __attribute__((constructor)) void usb_init(void)
 	
 	NVIC_EnableIRQ(USB_IRQn);
 	
-	usbd_init(&usbd, &usbd_hw, USB_PKT_SIZE, usb_buffer, sizeof(usb_buffer));
+	usbd_init(&usbd, &usbd_devfs, USB_PKT_SIZE, usb_buffer, sizeof(usb_buffer));
 	usbd_reg_descr(&usbd, usb_get_descriptor);
 	usbd_reg_control(&usbd, usb_control);
 	usbd_reg_config(&usbd, usb_set_config);
