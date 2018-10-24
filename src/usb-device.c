@@ -25,7 +25,9 @@ static usbd_respond usb_control(usbd_device *dev, usbd_ctlreq *req,
 __attribute__((constructor)) void usb_init(void)
 {
 	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
 	SET_FIELD(GPIOA->MODER, 0b1111 << 22, 0b1010 << 22);
+	SYSCFG->CFGR1 |= SYSCFG_CFGR1_PA11_PA12_RMP;
 	
 	NVIC_EnableIRQ(USB_IRQn);
 	

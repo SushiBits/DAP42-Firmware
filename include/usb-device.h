@@ -9,13 +9,12 @@
 #define INCLUDE_USB_DEVICE_H_
 
 #define USB_VID          0x0002
-#define USB_PID          0x8010
+#define USB_PID          0xD411
 
 #define USB_VENDOR_NAME  "SushiBits"
-#define USB_PRODUCT_NAME "DAP42 Comprehensive Debug Adapter"
-#define CDC_PRODUCT_NAME "DAP42 Virtual COM Port"
-#define HID_PRODUCT_NAME "DAP42 CMSIS-DAP Debug Probe"
-#define MSC_PRODUCT_NAME "DAP42 Mass Storage"
+#define USB_PRODUCT_NAME "ATSAML11 Mini Pro"
+#define CDC_PRODUCT_NAME "ATSAML11 Mini Pro Virtual COM Port"
+#define HID_PRODUCT_NAME "ATSAML11 Mini Pro CMSIS-DAP"
 
 #define USB_PKT_SIZE        64
 #define USB_HID_IN_EP       (0x01 | USB_EPDIR_IN)
@@ -258,15 +257,13 @@ static const struct usb_string_descriptor usb_manuf_desc_en    = USB_STRING_DESC
 static const struct usb_string_descriptor usb_prod_desc_en     = USB_STRING_DESC(USB_PRODUCT_NAME);
 static const struct usb_string_descriptor usb_hid_prod_desc_en = USB_STRING_DESC(HID_PRODUCT_NAME);
 static const struct usb_string_descriptor usb_cdc_prod_desc_en = USB_STRING_DESC(CDC_PRODUCT_NAME);
-static const struct usb_string_descriptor usb_msc_prod_desc_en = USB_STRING_DESC(MSC_PRODUCT_NAME);
 static const struct usb_string_descriptor *const usb_string_table[] =
 {
 		&usb_lang_desc,
 		&usb_manuf_desc_en,
 		&usb_prod_desc_en,
 		&usb_hid_prod_desc_en,
-		&usb_cdc_prod_desc_en,
-		&usb_msc_prod_desc_en
+		&usb_cdc_prod_desc_en
 };
 
 __END_DECLS

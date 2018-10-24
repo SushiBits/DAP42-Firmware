@@ -51,7 +51,7 @@ This information includes:
 
 /// Processor Clock of the Cortex-M MCU used in the Debug Unit.
 /// This value is used to calculate the SWD/JTAG clock speed.
-#define CPU_CLOCK               SystemCoreClock      ///< Specifies the CPU Clock in Hz.
+#define CPU_CLOCK               48000000        ///< Specifies the CPU Clock in Hz.
 
 /// Number of processor cycles for I/O Port write operations.
 /// This value is used to calculate the SWD/JTAG clock speed that is generated with I/O
@@ -59,7 +59,7 @@ This information includes:
 /// require 2 processor cycles for a I/O Port Write operation.  If the Debug Unit uses
 /// a Cortex-M0+ processor with high-speed peripheral I/O only 1 processor cycle might be 
 /// required.
-#define IO_PORT_WRITE_CYCLES    2U              ///< I/O Cycles: 2=default, 1=Cortex-M0+ fast I/0.
+#define IO_PORT_WRITE_CYCLES    4U              ///< I/O Cycles: 2=default, 1=Cortex-M0+ fast I/0.
 
 /// Indicate that Serial Wire Debug (SWD) communication mode is available at the Debug Access Port.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
@@ -67,15 +67,15 @@ This information includes:
 
 /// Indicate that JTAG communication mode is available at the Debug Port.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
-#define DAP_JTAG                1               ///< JTAG Mode: 1 = available, 0 = not available.
+#define DAP_JTAG                0               ///< JTAG Mode: 1 = available, 0 = not available.
 
 /// Configure maximum number of JTAG devices on the scan chain connected to the Debug Access Port.
 /// This setting impacts the RAM requirements of the Debug Unit. Valid range is 1 .. 255.
-#define DAP_JTAG_DEV_CNT        4U              ///< Maximum number of JTAG devices on scan chain.
+#define DAP_JTAG_DEV_CNT        1U              ///< Maximum number of JTAG devices on scan chain.
 
 /// Default communication mode on the Debug Access Port.
 /// Used for the command \ref DAP_Connect when Port Default mode is selected.
-#define DAP_DEFAULT_PORT        2U              ///< Default JTAG/SWJ Port Mode: 1 = SWD, 2 = JTAG.
+#define DAP_DEFAULT_PORT        1U              ///< Default JTAG/SWJ Port Mode: 1 = SWD, 2 = JTAG.
 
 /// Default communication speed on the Debug Access Port for SWD and JTAG mode.
 /// Used to initialize the default SWD/JTAG clock frequency.
@@ -92,14 +92,14 @@ This information includes:
 /// This configuration settings is used to optimize the communication performance with the
 /// debugger and depends on the USB peripheral. For devices with limited RAM or USB buffer the
 /// setting can be reduced (valid range is 1 .. 255).
-#define DAP_PACKET_COUNT        1U              ///< Specifies number of packets buffered.
+#define DAP_PACKET_COUNT        4U              ///< Specifies number of packets buffered.
 
 /// Indicate that UART Serial Wire Output (SWO) trace is available.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
 #define SWO_UART                0               ///< SWO UART:  1 = available, 0 = not available.
 
 /// Maximum SWO UART Baudrate.
-#define SWO_UART_MAX_BAUDRATE   (SystemCoreClock / 16)       ///< SWO UART Maximum Baudrate in Hz.
+#define SWO_UART_MAX_BAUDRATE   (CPU_CLOCK / 16)       ///< SWO UART Maximum Baudrate in Hz.
 
 /// Indicate that Manchester Serial Wire Output (SWO) trace is available.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
@@ -118,11 +118,11 @@ This information includes:
 /// The Debug Unit may be part of an evaluation board and always connected to a fixed
 /// known device.  In this case a Device Vendor and Device Name string is stored which
 /// may be used by the debugger or IDE to configure device parameters.
-#define TARGET_DEVICE_FIXED     0               ///< Target Device: 1 = known, 0 = unknown;
+#define TARGET_DEVICE_FIXED     1               ///< Target Device: 1 = known, 0 = unknown;
 
 #if TARGET_DEVICE_FIXED
-#define TARGET_DEVICE_VENDOR    "ARM"           ///< String indicating the Silicon Vendor
-#define TARGET_DEVICE_NAME      "Cortex-M4"     ///< String indicating the Target Device
+#define TARGET_DEVICE_VENDOR    "Microchip"     ///< String indicating the Silicon Vendor
+#define TARGET_DEVICE_NAME      "ATSAML11D16A"  ///< String indicating the Target Device
 #endif
 
 /** Get Vendor ID string.
@@ -200,11 +200,7 @@ Configures the DAP Hardware I/O pins for JTAG mode:
 */
 static __inline void PORT_JTAG_SETUP(void)
 {
-	SET_FIELD(GPIOA->MODER,   0xfffc, 0x5504);
-	SET_FIELD(GPIOA->OTYPER,    0xfe,   0x82);
-	SET_FIELD(GPIOA->OSPEEDR, 0xfffc, 0xfffc);
-	SET_FIELD(GPIOA->PUPDR,   0xfffc, 0x4024);
-	SET_FIELD(GPIOA->ODR,       0xfe,   0xfa);
+	; // SAML11 Pro Mini embeds only a SWD debugger.
 }
 
 /** Setup SWD I/O pins: SWCLK, SWDIO, and nRESET.
@@ -214,11 +210,17 @@ Configures the DAP Hardware I/O pins for Serial Wire Debug (SWD) mode:
 */
 static __inline void PORT_SWD_SETUP(void)
 {
-	SET_FIELD(GPIOA->MODER,   0xfffc, 0x0504);
-	SET_FIELD(GPIOA->OTYPER,    0xfe,   0x02);
-	SET_FIELD(GPIOA->OSPEEDR, 0xfffc, 0xfffc);
-	SET_FIELD(GPIOA->PUPDR,   0xfffc, 0x0024);
-	SET_FIELD(GPIOA->ODR,       0xfe,   0xfa);
+	SET_FIELD(GPIOA->ODR,         0x00c0,     0x00c0);
+	SET_FIELD(GPIOA->MODER,   0x0000f000, 0x00005000);
+	SET_FIELD(GPIOA->OTYPER,      0x00c0,     0x0000);
+	SET_FIELD(GPIOA->OSPEEDR, 0x0000f000, 0x00000000);
+	SET_FIELD(GPIOA->PUPDR,   0x0000f000, 0x00000000);
+
+	SET_FIELD(GPIOB->ODR,         0x0001,     0x0001);
+	SET_FIELD(GPIOB->MODER,   0x00000003, 0x00000001);
+	SET_FIELD(GPIOB->OTYPER,      0x0001,     0x0001);
+	SET_FIELD(GPIOB->OSPEEDR, 0x00000003, 0x00000000);
+	SET_FIELD(GPIOB->PUPDR,   0x00000003, 0x00000001);
 }
 
 /** Disable JTAG/SWD I/O Pins.
@@ -227,11 +229,11 @@ Disables the DAP Hardware I/O pins which configures:
 */
 static __inline void PORT_OFF(void)
 {
-	SET_FIELD(GPIOA->MODER,   0xfffc, 0x0000);
-	SET_FIELD(GPIOA->OTYPER,    0xfe,   0x00);
-	SET_FIELD(GPIOA->OSPEEDR, 0xfffc, 0x0000);
-	SET_FIELD(GPIOA->PUPDR,   0xfffc, 0x0000);
-	SET_FIELD(GPIOA->ODR,       0xfe,   0x00);
+	SET_FIELD(GPIOA->ODR,         0x00c0,     0x0000);
+	SET_FIELD(GPIOA->MODER,   0x0000f000, 0x00000000);
+	SET_FIELD(GPIOA->OTYPER,      0x00c0,     0x0000);
+	SET_FIELD(GPIOA->OSPEEDR, 0x0000f000, 0x00000000);
+	SET_FIELD(GPIOA->PUPDR,   0x0000f000, 0x00000000);
 }
 
 // SWCLK/TCK I/O pin -------------------------------------
@@ -241,7 +243,7 @@ static __inline void PORT_OFF(void)
 */
 static __inline uint32_t PIN_SWCLK_TCK_IN(void)
 {
-    return !!(GPIOA->IDR & 0x10);
+    return !!(GPIOA->IDR & 0x40);
 }
 
 /** SWCLK/TCK I/O pin: Set Output to High.
@@ -249,7 +251,7 @@ Set the SWCLK/TCK DAP hardware I/O pin to high level.
 */
 static __inline void     PIN_SWCLK_TCK_SET(void)
 {
-    GPIOA->BSRR = 0x10;
+    GPIOA->BSRR = 0x40;
 }
 
 /** SWCLK/TCK I/O pin: Set Output to Low.
@@ -257,7 +259,7 @@ Set the SWCLK/TCK DAP hardware I/O pin to low level.
 */
 static __inline void     PIN_SWCLK_TCK_CLR(void)
 {
-	GPIOA->BRR = 0x10;
+	GPIOA->BRR = 0x40;
 }
 
 // SWDIO/TMS Pin I/O --------------------------------------
@@ -267,7 +269,7 @@ static __inline void     PIN_SWCLK_TCK_CLR(void)
 */
 static __inline uint32_t PIN_SWDIO_IN(void)
 {
-    return !!(GPIOA->IDR & 0x20);
+    return !!(GPIOA->IDR & 0x80);
 }
 
 /** SWDIO I/O pin: Set Output (used in SWD mode only).
@@ -275,7 +277,10 @@ static __inline uint32_t PIN_SWDIO_IN(void)
 */
 static __inline void     PIN_SWDIO_OUT(uint32_t bit)
 {
-	GPIOA->BSRR = 0x20 << (bit ? 0 : 16);
+	if (bit)
+		GPIOA->BSRR = 0x80;
+	else
+		GPIOA->BRR = 0x80;
 }
 
 /** SWDIO I/O pin: Switch to Output mode (used in SWD mode only).
@@ -284,7 +289,8 @@ called prior \ref PIN_SWDIO_OUT function calls.
 */
 static __inline void     PIN_SWDIO_OUT_ENABLE(void)
 {
-    SET_FIELD(GPIOA->MODER, 0x0c00, 0x0400);
+    SET_FIELD(GPIOA->MODER, 0xc000, 0x4000);
+    __DSB();
 }
 
 /** SWDIO I/O pin: Switch to Input mode (used in SWD mode only).
@@ -293,7 +299,8 @@ called prior \ref PIN_SWDIO_IN function calls.
 */
 static __inline void     PIN_SWDIO_OUT_DISABLE(void)
 {
-	SET_FIELD(GPIOA->MODER, 0x0c00, 0x0000);
+	SET_FIELD(GPIOA->MODER, 0xc000, 0x0000);
+	__DSB();
 }
 
 /** SWDIO/TMS I/O pin: Get Input.
@@ -309,7 +316,7 @@ Set the SWDIO/TMS DAP hardware I/O pin to high level.
 */
 static __inline void     PIN_SWDIO_TMS_SET(void)
 {
-	PIN_SWDIO_OUT(1);
+	GPIOA->BSRR = 0x80;
 }
 
 /** SWDIO/TMS I/O pin: Set Output to Low.
@@ -317,7 +324,7 @@ Set the SWDIO/TMS DAP hardware I/O pin to low level.
 */
 static __inline void     PIN_SWDIO_TMS_CLR(void)
 {
-	PIN_SWDIO_OUT(0);
+	GPIOA->BRR = 0x80;
 }
 
 // TDI Pin I/O ---------------------------------------------
@@ -327,7 +334,7 @@ static __inline void     PIN_SWDIO_TMS_CLR(void)
 */
 static __inline uint32_t PIN_TDI_IN(void)
 {
-	return !!(GPIOA->IDR & 0x40);
+	return 0;
 }
 
 /** TDI I/O pin: Set Output.
@@ -335,7 +342,7 @@ static __inline uint32_t PIN_TDI_IN(void)
 */
 static __inline void     PIN_TDI_OUT(uint32_t bit)
 {
-	GPIOA->BSRR = 0x40 << (bit ? 0 : 16);
+	;
 }
 
 
@@ -346,7 +353,7 @@ static __inline void     PIN_TDI_OUT(uint32_t bit)
 */
 static __inline uint32_t PIN_TDO_IN(void)
 {
-	return !!(GPIOA->IDR & 0x08);
+	return 0;
 }
 
 
@@ -357,7 +364,7 @@ static __inline uint32_t PIN_TDO_IN(void)
 */
 static __inline uint32_t PIN_nTRST_IN(void)
 {
-	return !!(GPIOA->IDR & 0x80);
+	return 0;
 }
 
 /** nTRST I/O pin: Set Output.
@@ -367,7 +374,7 @@ static __inline uint32_t PIN_nTRST_IN(void)
 */
 static __inline void     PIN_nTRST_OUT(uint32_t bit)
 {
-	GPIOA->BSRR = 0x80 << (bit ? 0 : 16);
+	;
 }
 
 // nRESET Pin I/O------------------------------------------
@@ -377,7 +384,7 @@ static __inline void     PIN_nTRST_OUT(uint32_t bit)
 */
 static __inline uint32_t PIN_nRESET_IN(void)
 {
-	return !!(GPIOA->IDR & 0x02);
+	return !!(GPIOB->IDR & 0x01);
 }
 
 /** nRESET I/O pin: Set Output.
@@ -387,7 +394,7 @@ static __inline uint32_t PIN_nRESET_IN(void)
 */
 static __inline void     PIN_nRESET_OUT(uint32_t bit)
 {
-	GPIOA->BSRR = 0x02 << (bit ? 0 : 16);
+	GPIOB->BSRR = 0x01 << (bit ? 0 : 16);
 }
 
 ///@}
@@ -413,7 +420,7 @@ It is recommended to provide the following LEDs for status indication:
 */
 static __inline void LED_CONNECTED_OUT(uint32_t bit)
 {
-	GPIOA->BSRR = 0x0400 << (bit ? 16 : 0);
+	//GPIOA->BSRR = 0x0400 << (bit ? 16 : 0);
 }
 
 /** Debug Unit: Set status Target Running LED.
@@ -423,7 +430,7 @@ static __inline void LED_CONNECTED_OUT(uint32_t bit)
 */
 static __inline void LED_RUNNING_OUT(uint32_t bit)
 {
-	GPIOA->BSRR = 0x0200 << (bit ? 16 : 0);
+	//GPIOA->BSRR = 0x0200 << (bit ? 16 : 0);
 }
 
 ///@}
@@ -469,12 +476,18 @@ Status LEDs. In detail the operation of Hardware I/O and LED pins are enabled an
  - LED output pins are enabled and LEDs are turned off.
 */
 __STATIC_INLINE void DAP_SETUP (void) {
-	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
-	SET_FIELD(GPIOA->MODER,   0x003c0000, 0x00140000);
-	SET_FIELD(GPIOA->OTYPER,      0x0600,     0x0000);
-	SET_FIELD(GPIOA->OSPEEDR, 0x003c0000, 0x00000000);
-	SET_FIELD(GPIOA->PUPDR,   0x003c0000, 0x00000000);
-	SET_FIELD(GPIOA->ODR,         0x0600,     0x0600);
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN;
+	SET_FIELD(GPIOA->MODER,   0x0000f000, 0x00000000);
+	SET_FIELD(GPIOA->OTYPER,      0x00c0,     0x0000);
+	SET_FIELD(GPIOA->OSPEEDR, 0x0000f000, 0x00000000);
+	SET_FIELD(GPIOA->PUPDR,   0x0000f000, 0x00000000);
+	SET_FIELD(GPIOA->ODR,         0x00c0,     0x0000);
+
+	SET_FIELD(GPIOB->MODER,   0x00000003, 0x00000001);
+	SET_FIELD(GPIOB->OTYPER,      0x0001,     0x0001);
+	SET_FIELD(GPIOB->OSPEEDR, 0x00000003, 0x00000000);
+	SET_FIELD(GPIOB->PUPDR,   0x00000003, 0x00000001);
+	SET_FIELD(GPIOB->ODR,         0x0001,     0x0001);
 }
 
 /** Reset Target Device with custom specific I/O pin or command sequence.
