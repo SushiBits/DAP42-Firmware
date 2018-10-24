@@ -12,9 +12,9 @@
 #define USB_PID          0xD411
 
 #define USB_VENDOR_NAME  "SushiBits"
-#define USB_PRODUCT_NAME "ATSAML11 Mini Pro"
-#define CDC_PRODUCT_NAME "ATSAML11 Mini Pro Virtual COM Port"
-#define HID_PRODUCT_NAME "ATSAML11 Mini Pro CMSIS-DAP"
+#define USB_PRODUCT_NAME "ARM Classic Pro with CMSIS-DAP"
+#define CDC_PRODUCT_NAME "ARM Classic Pro Virtual COM Port"
+#define HID_PRODUCT_NAME "ARM Classic Pro CMSIS-DAP"
 
 #define USB_PKT_SIZE        64
 #define USB_HID_IN_EP       (0x01 | USB_EPDIR_IN)
