@@ -22,13 +22,11 @@ The SushiBits One variant is more similar to the original DAP42, lacking the USB
 MSC support, SWO code trace, and the buttons. It is based on [STM32F042F6][42F]
 or [STM32F070F6][70F] microcontroller.
 
-## The `stm32f1` branch
+## The `saml11` branch
 
-The `stm32f1` branch of this repository holds a version of DAP42 that supports
-both USB-based CMSIS-DAP protocol and an Ethernet-based protocol, based on the
-STM32F107 and eventually STM32F217 chip. This is more suitable in a more pro
-environment where multiple workstations share the same test adapter and target
-board.
+The `saml11` branch of this repository holds a version of DAP42 targeting the
+onboard debug probe of SushiBits ATSAML11 Mini Pro. The host interface chip is
+a STM32F042F6.
 
 ## License and contact
 
