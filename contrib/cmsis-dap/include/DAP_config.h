@@ -216,11 +216,11 @@ static __inline void PORT_SWD_SETUP(void)
 	SET_FIELD(GPIOA->OSPEEDR, 0x0000f000, 0x00000000);
 	SET_FIELD(GPIOA->PUPDR,   0x0000f000, 0x00000000);
 
-	SET_FIELD(GPIOB->ODR,         0x0001,     0x0001);
-	SET_FIELD(GPIOB->MODER,   0x00000003, 0x00000001);
-	SET_FIELD(GPIOB->OTYPER,      0x0001,     0x0001);
-	SET_FIELD(GPIOB->OSPEEDR, 0x00000003, 0x00000000);
-	SET_FIELD(GPIOB->PUPDR,   0x00000003, 0x00000001);
+	SET_FIELD(GPIOB->ODR,         0x0002,     0x0002);
+	SET_FIELD(GPIOB->MODER,   0x0000000c, 0x00000004);
+	SET_FIELD(GPIOB->OTYPER,      0x0002,     0x0002);
+	SET_FIELD(GPIOB->OSPEEDR, 0x0000000c, 0x00000000);
+	SET_FIELD(GPIOB->PUPDR,   0x0000000c, 0x00000004);
 }
 
 /** Disable JTAG/SWD I/O Pins.
@@ -308,7 +308,7 @@ static __inline void     PIN_SWDIO_OUT_DISABLE(void)
 */
 static __inline uint32_t PIN_SWDIO_TMS_IN(void)
 {
-    return PIN_SWDIO_IN();
+	return !!(GPIOA->IDR & 0x80);
 }
 
 /** SWDIO/TMS I/O pin: Set Output to High.
@@ -334,7 +334,7 @@ static __inline void     PIN_SWDIO_TMS_CLR(void)
 */
 static __inline uint32_t PIN_TDI_IN(void)
 {
-	return 0;
+	return 1;
 }
 
 /** TDI I/O pin: Set Output.
@@ -353,7 +353,7 @@ static __inline void     PIN_TDI_OUT(uint32_t bit)
 */
 static __inline uint32_t PIN_TDO_IN(void)
 {
-	return 0;
+	return 1;
 }
 
 
@@ -364,7 +364,7 @@ static __inline uint32_t PIN_TDO_IN(void)
 */
 static __inline uint32_t PIN_nTRST_IN(void)
 {
-	return 0;
+	return 1;
 }
 
 /** nTRST I/O pin: Set Output.
@@ -384,7 +384,7 @@ static __inline void     PIN_nTRST_OUT(uint32_t bit)
 */
 static __inline uint32_t PIN_nRESET_IN(void)
 {
-	return !!(GPIOB->IDR & 0x01);
+	return !!(GPIOB->IDR & 0x02);
 }
 
 /** nRESET I/O pin: Set Output.
@@ -394,7 +394,7 @@ static __inline uint32_t PIN_nRESET_IN(void)
 */
 static __inline void     PIN_nRESET_OUT(uint32_t bit)
 {
-	GPIOB->BSRR = 0x01 << (bit ? 0 : 16);
+	GPIOB->BSRR = 0x02 << (bit ? 0 : 16);
 }
 
 ///@}
@@ -483,11 +483,11 @@ __STATIC_INLINE void DAP_SETUP (void) {
 	SET_FIELD(GPIOA->PUPDR,   0x0000f000, 0x00000000);
 	SET_FIELD(GPIOA->ODR,         0x00c0,     0x0000);
 
-	SET_FIELD(GPIOB->MODER,   0x00000003, 0x00000001);
-	SET_FIELD(GPIOB->OTYPER,      0x0001,     0x0001);
-	SET_FIELD(GPIOB->OSPEEDR, 0x00000003, 0x00000000);
-	SET_FIELD(GPIOB->PUPDR,   0x00000003, 0x00000001);
-	SET_FIELD(GPIOB->ODR,         0x0001,     0x0001);
+	SET_FIELD(GPIOB->MODER,   0x0000000c, 0x00000004);
+	SET_FIELD(GPIOB->OTYPER,      0x0002,     0x0002);
+	SET_FIELD(GPIOB->OSPEEDR, 0x0000000c, 0x00000000);
+	SET_FIELD(GPIOB->PUPDR,   0x0000000c, 0x00000004);
+	SET_FIELD(GPIOB->ODR,         0x0002,     0x0002);
 }
 
 /** Reset Target Device with custom specific I/O pin or command sequence.
