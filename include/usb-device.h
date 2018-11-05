@@ -9,7 +9,7 @@
 #define INCLUDE_USB_DEVICE_H_
 
 #define USB_VID          0x0002
-#define USB_PID          0xD411
+#define USB_PID          0xD403
 
 #define USB_VENDOR_NAME  "SushiBits"
 #define USB_PRODUCT_NAME "ARM Classic Pro with CMSIS-DAP"

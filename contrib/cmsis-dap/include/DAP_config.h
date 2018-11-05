@@ -63,7 +63,7 @@ This information includes:
 
 /// Indicate that Serial Wire Debug (SWD) communication mode is available at the Debug Access Port.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
-#define DAP_SWD                 0               ///< SWD Mode:  1 = available, 0 = not available.
+#define DAP_SWD                 1               ///< SWD Mode:  1 = available, 0 = not available.
 
 /// Indicate that JTAG communication mode is available at the Debug Port.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
@@ -200,17 +200,19 @@ Configures the DAP Hardware I/O pins for JTAG mode:
 */
 static __inline void PORT_JTAG_SETUP(void)
 {
-	SET_FIELD(GPIOA->ODR,         0x00d0,     0x0050);
-	SET_FIELD(GPIOA->MODER,   0x0000f300, 0x00003300);
+	SET_FIELD(GPIOA->ODR,         0x00d0,     0x00d0);
+	SET_FIELD(GPIOA->MODER,   0x0000f300, 0x00001100);
 	SET_FIELD(GPIOA->OTYPER,      0x00d0,     0x0010);
 	SET_FIELD(GPIOA->OSPEEDR, 0x0000f300, 0x00000000);
 	SET_FIELD(GPIOA->PUPDR,   0x0000f300, 0x00000000);
 
-	SET_FIELD(GPIOB->ODR,         0x0082,     0x0082);
+	SET_FIELD(GPIOB->ODR,         0x0102,     0x0102);
 	SET_FIELD(GPIOB->MODER,   0x0003000c, 0x00010004);
-	SET_FIELD(GPIOB->OTYPER,      0x0082,     0x0000);
-	SET_FIELD(GPIOB->OSPEEDR, 0x00000003, 0x00000000);
+	SET_FIELD(GPIOB->OTYPER,      0x0102,     0x0000);
+	SET_FIELD(GPIOB->OSPEEDR, 0x0003000c, 0x00000000);
 	SET_FIELD(GPIOB->PUPDR,   0x0003000c, 0x00000000);
+
+	__DSB();
 }
 
 /** Setup SWD I/O pins: SWCLK, SWDIO, and nRESET.
@@ -220,7 +222,7 @@ Configures the DAP Hardware I/O pins for Serial Wire Debug (SWD) mode:
 */
 static __inline void PORT_SWD_SETUP(void)
 {
-	;
+	PORT_JTAG_SETUP();
 }
 
 /** Disable JTAG/SWD I/O Pins.
@@ -235,11 +237,13 @@ static __inline void PORT_OFF(void)
 	SET_FIELD(GPIOA->OSPEEDR, 0x0000f300, 0x00000000);
 	SET_FIELD(GPIOA->PUPDR,   0x0000f300, 0x00000000);
 
-	SET_FIELD(GPIOB->ODR,         0x0082,     0x0000);
+	SET_FIELD(GPIOB->ODR,         0x0102,     0x0000);
 	SET_FIELD(GPIOB->MODER,   0x0003000c, 0x00000000);
-	SET_FIELD(GPIOB->OTYPER,      0x0082,     0x0000);
+	SET_FIELD(GPIOB->OTYPER,      0x0102,     0x0000);
 	SET_FIELD(GPIOB->OSPEEDR, 0x00000003, 0x00000000);
 	SET_FIELD(GPIOB->PUPDR,   0x0003000c, 0x00000000);
+
+	__DSB();
 }
 
 // SWCLK/TCK I/O pin -------------------------------------
@@ -258,6 +262,7 @@ Set the SWCLK/TCK DAP hardware I/O pin to high level.
 static __inline void     PIN_SWCLK_TCK_SET(void)
 {
     GPIOB->BSRR = 0x02;
+    __DSB();
 }
 
 /** SWCLK/TCK I/O pin: Set Output to Low.
@@ -265,7 +270,8 @@ Set the SWCLK/TCK DAP hardware I/O pin to low level.
 */
 static __inline void     PIN_SWCLK_TCK_CLR(void)
 {
-	GPIOB->BRR = 0x02;
+	GPIOB->BSRR = 0x02 << 16;
+	__DSB();
 }
 
 // SWDIO/TMS Pin I/O --------------------------------------
@@ -275,7 +281,7 @@ static __inline void     PIN_SWCLK_TCK_CLR(void)
 */
 static __inline uint32_t PIN_SWDIO_IN(void)
 {
-	return !!(GPIOB->IDR & 0x10);
+	return !!(GPIOB->IDR & 0x100);
 }
 
 /** SWDIO I/O pin: Set Output (used in SWD mode only).
@@ -283,7 +289,8 @@ static __inline uint32_t PIN_SWDIO_IN(void)
 */
 static __inline void     PIN_SWDIO_OUT(uint32_t bit)
 {
-	GPIOB->BSRR = 0x10 << (bit ? 0 : 16);
+	GPIOB->BSRR = 0x100 << (bit ? 0 : 16);
+	__DSB();
 }
 
 /** SWDIO I/O pin: Switch to Output mode (used in SWD mode only).
@@ -292,7 +299,7 @@ called prior \ref PIN_SWDIO_OUT function calls.
 */
 static __inline void     PIN_SWDIO_OUT_ENABLE(void)
 {
-    ;
+	SET_FIELD(GPIOB->MODER,   0x00030000, 0x00010000);
 }
 
 /** SWDIO I/O pin: Switch to Input mode (used in SWD mode only).
@@ -301,7 +308,7 @@ called prior \ref PIN_SWDIO_IN function calls.
 */
 static __inline void     PIN_SWDIO_OUT_DISABLE(void)
 {
-	;
+	SET_FIELD(GPIOB->MODER,   0x00030000, 0x00000000);
 }
 
 /** SWDIO/TMS I/O pin: Get Input.
@@ -309,7 +316,7 @@ static __inline void     PIN_SWDIO_OUT_DISABLE(void)
 */
 static __inline uint32_t PIN_SWDIO_TMS_IN(void)
 {
-	return !!(GPIOB->IDR & 0x10);
+	return !!(GPIOB->IDR & 0x100);
 }
 
 /** SWDIO/TMS I/O pin: Set Output to High.
@@ -317,7 +324,7 @@ Set the SWDIO/TMS DAP hardware I/O pin to high level.
 */
 static __inline void     PIN_SWDIO_TMS_SET(void)
 {
-	GPIOB->BSRR = 0x10;
+	PIN_SWDIO_OUT(1);
 }
 
 /** SWDIO/TMS I/O pin: Set Output to Low.
@@ -325,7 +332,7 @@ Set the SWDIO/TMS DAP hardware I/O pin to low level.
 */
 static __inline void     PIN_SWDIO_TMS_CLR(void)
 {
-	GPIOB->BRR = 0x10;
+	PIN_SWDIO_OUT(0);
 }
 
 // TDI Pin I/O ---------------------------------------------
@@ -344,6 +351,7 @@ static __inline uint32_t PIN_TDI_IN(void)
 static __inline void     PIN_TDI_OUT(uint32_t bit)
 {
 	GPIOA->BSRR = 0x40 << (bit ? 0 : 16);
+	__DSB();
 }
 
 
@@ -365,7 +373,7 @@ static __inline uint32_t PIN_TDO_IN(void)
 */
 static __inline uint32_t PIN_nTRST_IN(void)
 {
-	return 0;
+	return 1;
 }
 
 /** nTRST I/O pin: Set Output.
@@ -396,6 +404,7 @@ static __inline uint32_t PIN_nRESET_IN(void)
 static __inline void     PIN_nRESET_OUT(uint32_t bit)
 {
 	GPIOA->BSRR = 0x10 << (bit ? 0 : 16);
+	__DSB();
 }
 
 ///@}
