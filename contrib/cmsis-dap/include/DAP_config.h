@@ -59,7 +59,7 @@ This information includes:
 /// require 2 processor cycles for a I/O Port Write operation.  If the Debug Unit uses
 /// a Cortex-M0+ processor with high-speed peripheral I/O only 1 processor cycle might be 
 /// required.
-#define IO_PORT_WRITE_CYCLES    4U              ///< I/O Cycles: 2=default, 1=Cortex-M0+ fast I/0.
+#define IO_PORT_WRITE_CYCLES    2U              ///< I/O Cycles: 2=default, 1=Cortex-M0+ fast I/0.
 
 /// Indicate that Serial Wire Debug (SWD) communication mode is available at the Debug Access Port.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
@@ -211,8 +211,6 @@ static __inline void PORT_JTAG_SETUP(void)
 	SET_FIELD(GPIOB->OTYPER,      0x0102,     0x0000);
 	SET_FIELD(GPIOB->OSPEEDR, 0x0003000c, 0x00000000);
 	SET_FIELD(GPIOB->PUPDR,   0x0003000c, 0x00000000);
-
-	__DSB();
 }
 
 /** Setup SWD I/O pins: SWCLK, SWDIO, and nRESET.
@@ -242,8 +240,6 @@ static __inline void PORT_OFF(void)
 	SET_FIELD(GPIOB->OTYPER,      0x0102,     0x0000);
 	SET_FIELD(GPIOB->OSPEEDR, 0x00000003, 0x00000000);
 	SET_FIELD(GPIOB->PUPDR,   0x0003000c, 0x00000000);
-
-	__DSB();
 }
 
 // SWCLK/TCK I/O pin -------------------------------------
@@ -262,7 +258,6 @@ Set the SWCLK/TCK DAP hardware I/O pin to high level.
 static __inline void     PIN_SWCLK_TCK_SET(void)
 {
     GPIOB->BSRR = 0x02;
-    __DSB();
 }
 
 /** SWCLK/TCK I/O pin: Set Output to Low.
@@ -271,7 +266,6 @@ Set the SWCLK/TCK DAP hardware I/O pin to low level.
 static __inline void     PIN_SWCLK_TCK_CLR(void)
 {
 	GPIOB->BSRR = 0x02 << 16;
-	__DSB();
 }
 
 // SWDIO/TMS Pin I/O --------------------------------------
@@ -290,7 +284,6 @@ static __inline uint32_t PIN_SWDIO_IN(void)
 static __inline void     PIN_SWDIO_OUT(uint32_t bit)
 {
 	GPIOB->BSRR = 0x100 << (bit ? 0 : 16);
-	__DSB();
 }
 
 /** SWDIO I/O pin: Switch to Output mode (used in SWD mode only).
@@ -351,7 +344,6 @@ static __inline uint32_t PIN_TDI_IN(void)
 static __inline void     PIN_TDI_OUT(uint32_t bit)
 {
 	GPIOA->BSRR = 0x40 << (bit ? 0 : 16);
-	__DSB();
 }
 
 
@@ -404,7 +396,6 @@ static __inline uint32_t PIN_nRESET_IN(void)
 static __inline void     PIN_nRESET_OUT(uint32_t bit)
 {
 	GPIOA->BSRR = 0x10 << (bit ? 0 : 16);
-	__DSB();
 }
 
 ///@}
@@ -487,17 +478,7 @@ Status LEDs. In detail the operation of Hardware I/O and LED pins are enabled an
 */
 __STATIC_INLINE void DAP_SETUP (void) {
 	RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN;
-	SET_FIELD(GPIOA->ODR,         0x00d0,     0x0010);
-	SET_FIELD(GPIOA->MODER,   0x0000f300, 0x00000300);
-	SET_FIELD(GPIOA->OTYPER,      0x00d0,     0x0010);
-	SET_FIELD(GPIOA->OSPEEDR, 0x0000f300, 0x00000000);
-	SET_FIELD(GPIOA->PUPDR,   0x0000f300, 0x00000000);
-
-	SET_FIELD(GPIOB->ODR,         0x0082,     0x0000);
-	SET_FIELD(GPIOB->MODER,   0x0003000c, 0x00000000);
-	SET_FIELD(GPIOB->OTYPER,      0x0082,     0x0000);
-	SET_FIELD(GPIOB->OSPEEDR, 0x00000003, 0x00000000);
-	SET_FIELD(GPIOB->PUPDR,   0x0003000c, 0x00000000);
+	PORT_OFF();
 }
 
 /** Reset Target Device with custom specific I/O pin or command sequence.
