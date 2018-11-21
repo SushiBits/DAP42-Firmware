@@ -17,16 +17,25 @@
 #include "DAP.h"
 
 static uint8_t USB_Request[DAP_PACKET_COUNT][DAP_PACKET_SIZE];
+static uint8_t USB_Response[DAP_PACKET_COUNT][DAP_PACKET_SIZE];
+static uint32_t USB_ResponseSize[DAP_PACKET_COUNT];
 static uint8_t USB_NewRequest[DAP_PACKET_SIZE];
 static uint32_t free_count = (DAP_PACKET_COUNT);
 static uint32_t send_count = 0;
 static uint32_t recv_idx = 0;
 static uint32_t send_idx = 0;
+static uint32_t handle_idx = 0;
 
 void usb_hid_init(void)
 {
 	DAP_Setup();
 	memset(USB_Request, 0, sizeof(USB_Request));
+	memset(USB_Response, 0, sizeof(USB_Response));
+	send_count = 0;
+	free_count = (DAP_PACKET_COUNT);
+	recv_idx = 0;
+	send_idx = 0;
+	handle_idx = 0;
 }
 
 void usb_hid_deinit(void)
@@ -66,34 +75,28 @@ void usb_hid_handle(usbd_device *dev, uint8_t event, uint8_t ep)
 		if (send_count)
 		{
 			send_count--;
-			usbd_ep_write(dev, USB_HID_IN_EP, USB_Request[send_idx], DAP_PACKET_SIZE);
+			usbd_ep_write(dev, ep, USB_Response[send_idx], /*(USB_ResponseSize[send_idx] & 0xffff) ?:*/ DAP_PACKET_SIZE);
 	        send_idx = (send_idx + 1) % DAP_PACKET_COUNT;
-			free_count++;
+	        free_count++;
 		}
-		else
-		{
-			usbd_ep_write(dev, USB_HID_IN_EP, NULL, 0);
-		}
+		usbd_ep_write(dev, ep, NULL, 0);
 		break;
 
 	case usbd_evt_eprx:
-		val = usbd_ep_read(dev, USB_HID_OUT_EP, USB_NewRequest, DAP_PACKET_SIZE);
+		memset(USB_NewRequest, 0, DAP_PACKET_SIZE);
+		val = usbd_ep_read(dev, ep, USB_NewRequest, DAP_PACKET_SIZE);
 
 		if (val <= 0)
 			break;
-
-		if (USB_NewRequest[0] == ID_DAP_TransferAbort)
-		{
-            DAP_TransferAbort = 1;
-            break;
-		}
 
 		if (!free_count)
 			break;
 
         free_count--;
+        memset(USB_Request[recv_idx], 0, DAP_PACKET_SIZE);
+        memset(USB_Response[recv_idx], 0, DAP_PACKET_SIZE);
         memcpy(USB_Request[recv_idx], USB_NewRequest, val);
-        DAP_ExecuteCommand(USB_NewRequest, USB_Request[recv_idx]);
+        USB_ResponseSize[recv_idx] = DAP_ExecuteCommand(USB_Request[recv_idx], USB_Response[recv_idx]);
         recv_idx = (recv_idx + 1) % DAP_PACKET_COUNT;
         send_count++;
 		break;
@@ -101,4 +104,19 @@ void usb_hid_handle(usbd_device *dev, uint8_t event, uint8_t ep)
 	default:
 		break;
 	}
+}
+
+void usb_hid_update_dap(void)
+{
+	/*
+	while (free_count < DAP_PACKET_COUNT && send_count < DAP_PACKET_COUNT)
+	{
+		USB_ResponseSize[handle_idx] = DAP_ExecuteCommand(USB_Request[handle_idx], USB_Response[handle_idx]);
+		handle_idx = (handle_idx + 1) % DAP_PACKET_COUNT;
+		free_count++;
+		send_count--;
+	}
+	*/
+
+	__WFE();
 }

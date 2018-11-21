@@ -7,8 +7,10 @@
 
 #include <stm32f0xx.h>
 
+#include "usb-hid.h"
+
 int main(void)
 {
 	for (;;)
-		__WFE();
+		usb_hid_update_dap();
 }

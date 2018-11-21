@@ -277,10 +277,7 @@ static __inline uint32_t PIN_SWDIO_IN(void)
 */
 static __inline void     PIN_SWDIO_OUT(uint32_t bit)
 {
-	if (bit)
-		GPIOA->BSRR = 0x80;
-	else
-		GPIOA->BRR = 0x80;
+	GPIOA->BSRR = 0x80 << (bit ? 0 : 16);
 }
 
 /** SWDIO I/O pin: Switch to Output mode (used in SWD mode only).
