@@ -13,7 +13,7 @@
 #include "usb-hid.h"
 #include "usb-serial.h"
 
-static usbd_device usbd;
+usbd_device usbd;
 static uint32_t usb_buffer[USB_PKT_SIZE];
 
 static usbd_respond usb_get_descriptor(usbd_ctlreq *req, void **address,

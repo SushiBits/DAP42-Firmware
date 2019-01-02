@@ -10,44 +10,60 @@
 #include <stm32f0xx.h>
 #include <stm32f0xx_it.h>
 #include <string.h>
-#include <dreamos-rt/gpio.h>
-#include <dreamos-rt/ring-buffer.h>
 #include <stdbool.h>
 #include <sys/cdefs.h>
 
 #include "usb-device.h"
+#include "time.h"
 
-RING_BUFFER_INIT_STATIC(usb_cdc_tx_buffer, 128);
-RING_BUFFER_INIT_STATIC(usb_cdc_rx_buffer, 128);
+#define BUFFER_SIZE 256
+static volatile uint8_t tx_buffer[BUFFER_SIZE];
+static volatile uint8_t tx_head = 0;
+static volatile uint8_t tx_tail = 0;
+static volatile uint8_t rx_buffer[BUFFER_SIZE];
+static volatile uint8_t rx_head = 0;
+static volatile uint8_t rx_tail = 0;
+#define INCREASE(var) var = (var + 1) % BUFFER_SIZE
 
-static struct usb_cdc_line_coding usb_cdc_line_coding =
+static volatile uint32_t txled_time;
+static volatile uint32_t rxled_time;
+static volatile uint32_t reset_time;
+
+static struct usb_cdc_line_coding cdc_line =
 { .dwDTERate = 115200, .bCharFormat = USB_CDC_1_STOP_BITS, .bParityType =
 USB_CDC_NO_PARITY, .bDataBits = 8, };
 
-static void usb_cdc_set_usart(void);
+static void cdc_handle_line_change(void);
+static void cdc_handle_status_bits(uint16_t bits);
 
 void usb_cdc_init(void)
 {
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
 	RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
+	RCC->APB1RSTR |= RCC_APB1RSTR_USART2RST;
 	__DSB();
+	RCC->APB1RSTR &= ~RCC_APB1RSTR_USART2RST;
+
+	SET_FIELD(GPIOA->ODR, 0x0033, 0x0033);
+	SET_FIELD(GPIOA->MODER, 0x03c00fff, 0x028005a5);
+	SET_FIELD(GPIOA->OSPEEDR, 0x03c00fff, 0x03c00000);
+	SET_FIELD(GPIOA->OTYPER, 0x0033, 0x0033);
+	SET_FIELD(GPIOA->AFR[0], 0x0000ff00, 0x00001100);
+	SET_FIELD(GPIOA->AFR[1], 0x000ff000, 0x00077000);
+
+	tx_head = 0;
+	tx_tail = 0;
+	rx_head = 0;
+	rx_tail = 0;
+
+	cdc_handle_line_change();
+	USART2->CR1 |= USART_CR1_RE | USART_CR1_TE | USART_CR1_RXNEIE;
 	NVIC_EnableIRQ(USART2_IRQn);
-	
-	usb_cdc_line_coding.dwDTERate = 115200;
-	usb_cdc_line_coding.bCharFormat = USB_CDC_1_STOP_BITS;
-	usb_cdc_line_coding.bParityType = USB_CDC_NO_PARITY;
-	usb_cdc_line_coding.bDataBits = 8;
-	
-	usb_cdc_set_usart();
-	
-	pinMode(0x02, AFIO_PU(GPIO_MODE_AF0));
-	pinMode(0x03, AFIO_PU(GPIO_MODE_AF0));
+	USART2->CR1 |= USART_CR1_UE;
 }
 
 void usb_cdc_deinit(void)
 {
-	pinMode(0x02, INPUT);
-	pinMode(0x03, INPUT);
-	
 	NVIC_DisableIRQ(USART2_IRQn);
 	RCC->APB1ENR &= ~RCC_APB1ENR_USART2EN;
 }
@@ -55,222 +71,223 @@ void usb_cdc_deinit(void)
 usbd_respond usb_cdc_control(usbd_device *dev, usbd_ctlreq *req,
 		usbd_rqc_callback *callback)
 {
-	if (((USB_REQ_RECIPIENT | USB_REQ_TYPE) & req->bmRequestType)
-			!= (USB_REQ_INTERFACE | USB_REQ_CLASS))
-		return usbd_fail;
-	
-	switch (req->bRequest)
-	{
-	case USB_CDC_SET_LINE_CODING:
-		memmove(&usb_cdc_line_coding, req->data, sizeof(usb_cdc_line_coding));
-		
-		// Validate data rate.
-		if (usb_cdc_line_coding.dwDTERate < SystemCoreClock / UINT16_MAX)
-			usb_cdc_line_coding.dwDTERate = SystemCoreClock / UINT16_MAX;
-		if (usb_cdc_line_coding.dwDTERate > SystemCoreClock / 16)
-			usb_cdc_line_coding.dwDTERate = SystemCoreClock / 16;
-		
-		// Validate the data bits.
-		if (usb_cdc_line_coding.bParityType == USB_CDC_NO_PARITY)
-		{
-			if (usb_cdc_line_coding.bDataBits < 7)
-				usb_cdc_line_coding.bDataBits = 7;
-			if (usb_cdc_line_coding.bDataBits > 8)
-				usb_cdc_line_coding.bDataBits = 8;
-		}
-		else
-		{
-			if (usb_cdc_line_coding.bDataBits < 6)
-				usb_cdc_line_coding.bDataBits = 6;
-			if (usb_cdc_line_coding.bDataBits > 8)
-				usb_cdc_line_coding.bDataBits = 8;
-		}
-		
-		usb_cdc_set_usart();
-		
-		return usbd_ack;
-		
-	case USB_CDC_GET_LINE_CODING:
-		dev->status.data_ptr = &usb_cdc_line_coding;
-		dev->status.data_count = sizeof(usb_cdc_line_coding);
-		return usbd_ack;
-		
-	case USB_CDC_SET_CONTROL_LINE_STATE:
-		return usbd_ack;
-		
-	default:
-		return usbd_fail;
-	}
-}
+    if (((USB_REQ_RECIPIENT | USB_REQ_TYPE) & req->bmRequestType) != (USB_REQ_INTERFACE | USB_REQ_CLASS))
+    	return usbd_fail;
 
-static void usb_cdc_set_usart(void)
-{
-	// Reset the USART peripheral.
-	RCC->APB1RSTR |= RCC_APB1RSTR_USART2RST;
-	__DSB();
-	RCC->APB1RSTR &= ~RCC_APB1RSTR_USART2RST;
-	__DSB();
-	
-	ring_buffer_drain(usb_cdc_tx_buffer);
-	ring_buffer_drain(usb_cdc_rx_buffer);
+    switch (req->bRequest) {
+    case USB_CDC_SET_CONTROL_LINE_STATE:
+    	cdc_handle_status_bits(req->wValue);
+        return usbd_ack;
 
-	// Set the data bits register.
-	uint8_t data_bits = 8;
-	if (usb_cdc_line_coding.bParityType == USB_CDC_NO_PARITY)
-		data_bits = usb_cdc_line_coding.bDataBits;
-	else
-		data_bits = usb_cdc_line_coding.bDataBits + 1;
-	switch (data_bits)
-	{
-	case 7:
-		USART2->CR1 = USART_CR1_M1;
-		break;
+    case USB_CDC_SET_LINE_CODING:
+    {
+    	struct usb_cdc_line_coding *new_line = (void *)req->data;
 
-	case 8:
-		USART2->CR1 = 0;
-		break;
+    	if (new_line->dwDTERate == 1200)
+    	{
+    		GPIOA->ODR &= ~0x0030;
+    		reset_time = millis();
+    	}
 
-	case 9:
-		USART2->CR1 = USART_CR1_M0;
-		break;
+    	if (memcmp(&cdc_line, new_line, sizeof(cdc_line)))
+    	{
+    		memmove(&cdc_line, new_line, sizeof(cdc_line));
+    		cdc_handle_line_change();
+    	}
 
-	default:
-		USART2->CR1 = 0;
-		break;
-	}
+        return usbd_ack;
+    }
 
-	// Set the parity bits register
-	switch (usb_cdc_line_coding.bParityType)
-	{
-	case USB_CDC_ODD_PARITY:
-		USART2->CR1 |= USART_CR1_PCE | USART_CR1_PS;
-		break;
+    case USB_CDC_GET_LINE_CODING:
+        dev->status.data_ptr = &cdc_line;
+        dev->status.data_count = sizeof(cdc_line);
+        return usbd_ack;
 
-	case USB_CDC_EVEN_PARITY:
-		USART2->CR1 |= USART_CR1_PCE;
-		break;
-
-	default:
-		break;
-	}
-
-	// Set the stop bits register
-	switch (usb_cdc_line_coding.bCharFormat)
-	{
-	case USB_CDC_1_STOP_BITS:
-		USART2->CR2 = 0x0 << USART_CR2_STOP_Pos;
-		break;
-
-	case USB_CDC_1_5_STOP_BITS:
-		USART2->CR2 = 0x3 << USART_CR2_STOP_Pos;
-		break;
-
-	case USB_CDC_2_STOP_BITS:
-		USART2->CR2 = 0x2 << USART_CR2_STOP_Pos;
-		break;
-
-	default:
-		USART2->CR2 = 0x0 << USART_CR2_STOP_Pos;
-		break;
-	}
-
-	// Set the baudrate
-	USART2->BRR = SystemCoreClock / usb_cdc_line_coding.dwDTERate;
-
-	USART2->CR1 |= USART_CR1_RXNEIE | USART_CR1_TE | USART_CR1_RE;
-	__DSB();
-
-	USART2->CR1 |= USART_CR1_UE;
-}
-
-void USART2_IRQHandler()
-{
-	if (USART2->ISR & USART_ISR_RXNE)
-	{
-		if (USART2->ISR & USART_ISR_PE)
-			USART2->ICR = USART_ICR_PECF;
-
-		uint8_t ch = 0;
-		switch (usb_cdc_line_coding.bParityType)
-		{
-		case USB_CDC_MARK_PARITY:
-		case USB_CDC_SPACE_PARITY:
-		case USB_CDC_ODD_PARITY:
-		case USB_CDC_EVEN_PARITY:
-			ch = USART2->RDR & ((1 << usb_cdc_line_coding.bDataBits) - 1);
-			break;
-
-		default:
-			ch = USART2->RDR;
-		}
-
-		ring_buffer_putchar(usb_cdc_rx_buffer, ch);
-	}
-
-	if (USART2->ISR & USART_ISR_TXE)
-	{
-		int ch = ring_buffer_getchar(usb_cdc_tx_buffer);
-		if (ch < 0)
-		{
-			USART2->CR1 &= ~USART_CR1_TXEIE;
-		}
-		else
-		{
-			ch &= (1 << usb_cdc_line_coding.bDataBits) - 1;
-			if (usb_cdc_line_coding.bParityType == USB_CDC_MARK_PARITY)
-			{
-				ch |= (1 << usb_cdc_line_coding.bDataBits);
-			}
-
-			USART2->TDR = ch;
-		}
-	}
+    default:
+        return usbd_fail;
+    }
 }
 
 void usb_cdc_handle(usbd_device *dev, uint8_t event, uint8_t ep)
 {
-	int val;
-	switch (event)
+	uint8_t data = 0;
+    switch (event) {
+    case usbd_evt_eptx:
+        if (rx_head != rx_tail)
+        {
+        	data = rx_buffer[rx_tail];
+        	INCREASE(rx_tail);
+        	usbd_ep_write(dev, ep, &data, sizeof(data));
+        }
+        break;
+
+    case usbd_evt_eprx:
+    	while (usbd_ep_read(dev, ep, &data, sizeof(data)) > 0)
+    	{
+    		tx_buffer[tx_head] = data;
+    		INCREASE(tx_head);
+    		if (tx_head == tx_tail)
+    			INCREASE(tx_tail);
+    		USART2->CR1 |= USART_CR1_TXEIE;
+    	}
+    	break;
+
+    default:
+        break;
+    }
+}
+
+#define CLAMP(var, lower, upper) \
+	do { \
+		typeof(var) *v = &(var), l = (lower), u = (upper); \
+		if (*v < l) *v = l; \
+		if (*v > u) *v = u; \
+	} while (0)
+
+static void cdc_handle_line_change(void)
+{
+	// Validate the line code
+	uint8_t data_bits;
+
+	CLAMP(cdc_line.dwDTERate, SystemCoreClock / UINT16_MAX, SystemCoreClock / 16);
+
+	if (cdc_line.bParityType == USB_CDC_NO_PARITY)
 	{
-	case usbd_evt_eptx:
-		for (off_t count = 0; count < USB_PKT_SIZE; count++)
-		{
-			int rv = ring_buffer_peekchar(usb_cdc_rx_buffer);
-			if (rv > 0)
-			{
-				uint8_t ch = rv;
-				val = usbd_ep_write(dev, USB_CDC_DATA_IN_EP, &ch, 1);
-				if (val > 0)
-					ring_buffer_getchar(usb_cdc_rx_buffer);
-				else
-					break;
-			}
-			else
-			{
-				usbd_ep_write(dev, USB_CDC_DATA_IN_EP, NULL, 0);
-				break;
-			}
-		}
-		break;
-
-	case usbd_evt_eprx:
-		for (;;)
-		{
-			uint8_t ch = 0;
-			val = usbd_ep_read(dev, USB_CDC_DATA_OUT_EP, &ch, 1);
-			if (val > 0)
-			{
-				ring_buffer_putchar(usb_cdc_tx_buffer, ch);
-				USART2->CR1 |= USART_CR1_TXEIE;
-			}
-			else
-			{
-				break;
-			}
-		}
-		break;
-
-	default:
-		break;
+		CLAMP(cdc_line.bDataBits, 7, 8);
+		data_bits = cdc_line.bDataBits;
 	}
+	else
+	{
+		CLAMP(cdc_line.bDataBits, 6, 8);
+		data_bits = cdc_line.bDataBits + 1;
+	}
+
+	if (cdc_line.bCharFormat > 0b11)
+		cdc_line.bCharFormat = 0b11;
+
+	bool reenable = !!(USART2->CR1 & USART_CR1_UE);
+	USART2->CR1 &= ~USART_CR1_UE;
+
+	static const uint32_t stop_map[] = {0b00 << USART_CR2_STOP_Pos, 0b11 << USART_CR2_STOP_Pos, 0b10 << USART_CR2_STOP_Pos};
+	SET_FIELD(USART2->CR1, USART_CR1_PS | USART_CR1_PCE | USART_CR1_M0 | USART_CR1_M1,
+			((cdc_line.bParityType == USB_CDC_ODD_PARITY) ? USART_CR1_PS : 0) |
+			((cdc_line.bParityType == USB_CDC_ODD_PARITY || cdc_line.bParityType == USB_CDC_EVEN_PARITY) ? USART_CR1_PCE : 0) |
+			((data_bits == 9) ? USART_CR1_M0 : 0) |
+			((data_bits == 7) ? USART_CR1_M1 : 0));
+	SET_FIELD(USART2->CR2, USART_CR2_STOP_Msk, stop_map[cdc_line.bCharFormat]);
+	USART2->BRR = SystemCoreClock / cdc_line.dwDTERate;
+
+	if (reenable)
+		USART2->CR1 |= USART_CR1_UE;
+}
+
+static uint16_t cdc_status_bits = 0;
+
+static void cdc_handle_status_bits(uint16_t bits)
+{
+	if (bits != cdc_status_bits)
+	{
+		if (!(cdc_status_bits & 0x0001) && (bits & 0x0001))
+		{
+			SET_FIELD(GPIOA->ODR, 0x0030, 0x0020);
+			reset_time = millis();
+		}
+		cdc_status_bits = bits;
+	}
+}
+
+void USART2_IRQHandler(void)
+{
+	uint32_t now = millis();
+
+	if (USART2->ISR & USART_ISR_RXNE)
+	{
+		uint16_t data = USART2->RDR;
+		bool okay = true;
+
+		switch (cdc_line.bParityType)
+		{
+		case USB_CDC_ODD_PARITY:
+		case USB_CDC_EVEN_PARITY:
+		case USB_CDC_NO_PARITY:
+			okay = true;
+			break;
+
+		case USB_CDC_MARK_PARITY:
+			okay = (data & 0b00000001) == 1;
+			data = data >> 1;
+			break;
+
+		case USB_CDC_SPACE_PARITY:
+			okay = (data & 0b00000001) == 0;
+			data = data >> 1;
+			break;
+		}
+
+		if (okay)
+		{
+			rx_buffer[rx_head] = data;
+			INCREASE(rx_head);
+			if (rx_tail == rx_head)
+				INCREASE(rx_tail);
+			GPIOA->ODR &= ~0x0001;
+			txled_time = now;
+		}
+	}
+
+	if (USART2->ISR & USART_ISR_TXE)
+	{
+		if (tx_tail != tx_head)
+		{
+			uint16_t data = tx_buffer[tx_tail];
+			INCREASE(tx_tail);
+
+			switch (cdc_line.bParityType)
+			{
+			case USB_CDC_ODD_PARITY:
+			case USB_CDC_EVEN_PARITY:
+			case USB_CDC_NO_PARITY:
+				USART2->TDR = data;
+				break;
+
+			case USB_CDC_MARK_PARITY:
+				USART2->TDR = data << 1 | 1;
+				break;
+
+			case USB_CDC_SPACE_PARITY:
+				USART2->TDR = data << 1 | 0;
+				break;
+			}
+
+			GPIOA->ODR &= ~0x0002;
+			rxled_time = now;
+		}
+		else
+		{
+			USART2->CR1 &= ~USART_CR1_TXEIE;
+		}
+	}
+}
+
+void usb_cdc_update(void)
+{
+	uint32_t now = millis();
+
+	if (rx_head != rx_tail)
+	{
+		usbd_ep_write(&usbd, USB_CDC_DATA_OUT_EP, NULL, 0);
+	}
+
+	if (!(GPIOA->ODR & 0x0001) && (now - txled_time > 100))
+	{
+		GPIOA->ODR |= 0x0001;
+	}
+
+	else if (!(GPIOA->ODR & 0x0002) && (now - rxled_time > 100))
+	{
+		GPIOA->ODR |= 0x0002;
+	}
+
+	if (!(GPIOA->ODR & 0x0010) && (now - reset_time > 50))
+		GPIOA->ODR |= 0x0010;
 }

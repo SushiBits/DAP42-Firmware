@@ -32,6 +32,8 @@
 
 __BEGIN_DECLS
 
+extern usbd_device usbd;
+
 __attribute__((packed)) struct usb_device_config_descriptor
 {
 	struct usb_config_descriptor    config_descriptor;

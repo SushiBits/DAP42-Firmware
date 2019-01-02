@@ -7,6 +7,7 @@
 
 #include <stm32f0xx.h>
 #include "usb-hid.h"
+#include "usb-serial.h"
 
 int main(void)
 {
@@ -15,6 +16,7 @@ int main(void)
 	for (;;)
 	{
 		usb_hid_update();
+		usb_cdc_update();
 		__WFE();
 	}
 }
