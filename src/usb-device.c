@@ -97,7 +97,7 @@ static usbd_respond usb_set_config(usbd_device *dev, uint8_t cfg)
 		usbd_ep_deconfig(dev, USB_HID_OUT_EP);
 		usbd_reg_endpoint(dev, USB_HID_IN_EP, NULL);
 		usbd_reg_endpoint(dev, USB_HID_OUT_EP, NULL);
-		usb_hid_deinit();
+		//usb_hid_deinit();
 		
 		usbd_ep_deconfig(dev, USB_CDC_CTRL_EP);
 		usbd_ep_deconfig(dev, USB_CDC_DATA_IN_EP);
@@ -114,7 +114,7 @@ static usbd_respond usb_set_config(usbd_device *dev, uint8_t cfg)
 		usbd_reg_endpoint(dev, USB_HID_IN_EP, usb_hid_handle);
 		usbd_reg_endpoint(dev, USB_HID_OUT_EP, usb_hid_handle);
 		usbd_ep_write(dev, USB_HID_IN_EP, NULL, 0);
-		usb_hid_init();
+		//usb_hid_init();
 		
 		usbd_ep_config(dev, USB_CDC_CTRL_EP, USB_EPTYPE_INTERRUPT, USB_PKT_SIZE);
 		usbd_ep_config(dev, USB_CDC_DATA_IN_EP, USB_EPTYPE_BULK, USB_PKT_SIZE);

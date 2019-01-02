@@ -16,22 +16,32 @@
 #include "DAP_config.h"
 #include "DAP.h"
 
-static uint8_t USB_Request[DAP_PACKET_COUNT][DAP_PACKET_SIZE];
-static uint8_t USB_NewRequest[DAP_PACKET_SIZE];
-static uint32_t free_count = (DAP_PACKET_COUNT);
-static uint32_t send_count = 0;
-static uint32_t recv_idx = 0;
-static uint32_t send_idx = 0;
+struct DAP_Packet
+{
+	uint8_t data[DAP_PACKET_SIZE];
+	uint8_t size;
+};
+
+#define HID_PACKET_COUNT (DAP_PACKET_COUNT + 1)
+
+static struct DAP_Packet request[HID_PACKET_COUNT];
+static uint8_t req_buffer[DAP_PACKET_SIZE];
+static uint8_t request_head = 0;
+static uint8_t request_tail = 0;
+
+static struct DAP_Packet response[HID_PACKET_COUNT];
+static uint8_t response_head = 0;
+static uint8_t response_tail = 0;
+
+#define LOOP_NEXT(x) ((x + 1) % HID_PACKET_COUNT)
+#define LOOP_INCREASE(var) var = LOOP_NEXT(var)
 
 void usb_hid_init(void)
 {
 	DAP_Setup();
-	memset(USB_Request, 0, sizeof(USB_Request));
-}
-
-void usb_hid_deinit(void)
-{
-	
+	memset(req_buffer, 0, sizeof(req_buffer));
+	memset(request, 0, sizeof(request));
+	memset(response, 0, sizeof(response));
 }
 
 usbd_respond usb_hid_control(usbd_device *dev, usbd_ctlreq *req,
@@ -63,12 +73,11 @@ void usb_hid_handle(usbd_device *dev, uint8_t event, uint8_t ep)
 	switch (event)
 	{
 	case usbd_evt_eptx:
-		if (send_count)
+		if (response_head != response_tail)
 		{
-			send_count--;
-			usbd_ep_write(dev, USB_HID_IN_EP, USB_Request[send_idx], DAP_PACKET_SIZE);
-	        send_idx = (send_idx + 1) % DAP_PACKET_COUNT;
-			free_count++;
+			struct DAP_Packet *packet = &(response[response_tail]);
+			usbd_ep_write(dev, USB_HID_IN_EP, packet->data, packet->size);
+			LOOP_INCREASE(response_tail);
 		}
 		else
 		{
@@ -77,28 +86,36 @@ void usb_hid_handle(usbd_device *dev, uint8_t event, uint8_t ep)
 		break;
 
 	case usbd_evt_eprx:
-		val = usbd_ep_read(dev, USB_HID_OUT_EP, USB_NewRequest, DAP_PACKET_SIZE);
+		memset(req_buffer, 0, DAP_PACKET_SIZE);
+		val = usbd_ep_read(dev, USB_HID_OUT_EP, req_buffer, DAP_PACKET_SIZE);
 
 		if (val <= 0)
 			break;
 
-		if (USB_NewRequest[0] == ID_DAP_TransferAbort)
+		if (LOOP_NEXT(request_head) != request_tail)
 		{
-            DAP_TransferAbort = 1;
-            break;
+			struct DAP_Packet *req = &(request[request_head]);
+			memcpy(req->data, req_buffer, DAP_PACKET_SIZE);
+			LOOP_INCREASE(request_head);
 		}
-
-		if (!free_count)
-			break;
-
-        free_count--;
-        memcpy(USB_Request[recv_idx], USB_NewRequest, val);
-        DAP_ExecuteCommand(USB_NewRequest, USB_Request[recv_idx]);
-        recv_idx = (recv_idx + 1) % DAP_PACKET_COUNT;
-        send_count++;
 		break;
 
 	default:
 		break;
+	}
+}
+
+void usb_hid_update(void)
+{
+	uint32_t value = 0;
+	while ((request_head != request_tail) && (LOOP_NEXT(response_head) != response_tail))
+	{
+		struct DAP_Packet *req = &(request[request_tail]);
+		struct DAP_Packet *resp = &(response[response_head]);
+		memset(resp->data, 0, sizeof(resp->data));
+		value = DAP_ExecuteCommand(req->data, resp->data);
+		resp->size = DAP_PACKET_SIZE;
+		LOOP_INCREASE(request_tail);
+		LOOP_INCREASE(response_head);
 	}
 }

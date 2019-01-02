@@ -6,9 +6,15 @@
  */
 
 #include <stm32f0xx.h>
+#include "usb-hid.h"
 
 int main(void)
 {
+	usb_hid_init();
+
 	for (;;)
+	{
+		usb_hid_update();
 		__WFE();
+	}
 }

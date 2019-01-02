@@ -17,10 +17,10 @@
 __BEGIN_DECLS
 
 void usb_hid_init(void);
-void usb_hid_deinit(void);
 usbd_respond usb_hid_control(usbd_device *dev, usbd_ctlreq *req,
 		usbd_rqc_callback *callback);
 void usb_hid_handle(usbd_device *dev, uint8_t event, uint8_t ep);
+void usb_hid_update(void);
 
 __END_DECLS
 
