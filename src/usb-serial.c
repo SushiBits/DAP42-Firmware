@@ -30,26 +30,29 @@ static volatile uint32_t rxled_time;
 static volatile uint32_t reset_time;
 
 static struct usb_cdc_line_coding cdc_line =
-{ .dwDTERate = 115200, .bCharFormat = USB_CDC_1_STOP_BITS, .bParityType =
-USB_CDC_NO_PARITY, .bDataBits = 8, };
+{
+		.dwDTERate = 115200,
+		.bCharFormat = USB_CDC_1_STOP_BITS,
+		.bParityType = USB_CDC_NO_PARITY,
+		.bDataBits = 8
+};
 
 static void cdc_handle_line_change(void);
 static void cdc_handle_status_bits(uint16_t bits);
 
 void usb_cdc_init(void)
 {
-	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
-	RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
-	RCC->APB1RSTR |= RCC_APB1RSTR_USART2RST;
+	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
+	RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+	RCC->APB2RSTR |= RCC_APB2RSTR_USART1RST;
 	__DSB();
-	RCC->APB1RSTR &= ~RCC_APB1RSTR_USART2RST;
+	RCC->APB2RSTR &= ~RCC_APB2RSTR_USART1RST;
 
-	SET_FIELD(GPIOA->ODR, 0x0033, 0x0033);
-	SET_FIELD(GPIOA->MODER, 0x03c00fff, 0x028005a5);
-	SET_FIELD(GPIOA->OSPEEDR, 0x03c00fff, 0x03c00000);
-	SET_FIELD(GPIOA->OTYPER, 0x0033, 0x0033);
-	SET_FIELD(GPIOA->AFR[0], 0x0000ff00, 0x00001100);
-	SET_FIELD(GPIOA->AFR[1], 0x000ff000, 0x00077000);
+	SET_FIELD(GPIOB->ODR, 0x00c0, 0x00c0);
+	SET_FIELD(GPIOB->MODER, 0x0000f000, 0x0000a000);
+	SET_FIELD(GPIOB->OSPEEDR, 0x0000f000, 0x0000f000);
+	SET_FIELD(GPIOB->OTYPER, 0x00c0, 0x0000);
+	SET_FIELD(GPIOB->AFR[0], 0xff000000, 0x00000000);
 
 	tx_head = 0;
 	tx_tail = 0;
@@ -57,15 +60,15 @@ void usb_cdc_init(void)
 	rx_tail = 0;
 
 	cdc_handle_line_change();
-	USART2->CR1 |= USART_CR1_RE | USART_CR1_TE | USART_CR1_RXNEIE;
-	NVIC_EnableIRQ(USART2_IRQn);
-	USART2->CR1 |= USART_CR1_UE;
+	USART1->CR1 |= USART_CR1_RE | USART_CR1_TE | USART_CR1_RXNEIE;
+	NVIC_EnableIRQ(USART1_IRQn);
+	USART1->CR1 |= USART_CR1_UE;
 }
 
 void usb_cdc_deinit(void)
 {
-	NVIC_DisableIRQ(USART2_IRQn);
-	RCC->APB1ENR &= ~RCC_APB1ENR_USART2EN;
+	NVIC_DisableIRQ(USART1_IRQn);
+	RCC->APB2ENR &= ~RCC_APB2ENR_USART1EN;
 }
 
 usbd_respond usb_cdc_control(usbd_device *dev, usbd_ctlreq *req,
@@ -128,7 +131,7 @@ void usb_cdc_handle(usbd_device *dev, uint8_t event, uint8_t ep)
     		INCREASE(tx_head);
     		if (tx_head == tx_tail)
     			INCREASE(tx_tail);
-    		USART2->CR1 |= USART_CR1_TXEIE;
+    		USART1->CR1 |= USART_CR1_TXEIE;
     	}
     	break;
 
@@ -165,20 +168,20 @@ static void cdc_handle_line_change(void)
 	if (cdc_line.bCharFormat > 0b11)
 		cdc_line.bCharFormat = 0b11;
 
-	bool reenable = !!(USART2->CR1 & USART_CR1_UE);
-	USART2->CR1 &= ~USART_CR1_UE;
+	bool reenable = !!(USART1->CR1 & USART_CR1_UE);
+	USART1->CR1 &= ~USART_CR1_UE;
 
 	static const uint32_t stop_map[] = {0b00 << USART_CR2_STOP_Pos, 0b11 << USART_CR2_STOP_Pos, 0b10 << USART_CR2_STOP_Pos};
-	SET_FIELD(USART2->CR1, USART_CR1_PS | USART_CR1_PCE | USART_CR1_M0 | USART_CR1_M1,
+	SET_FIELD(USART1->CR1, USART_CR1_PS | USART_CR1_PCE | USART_CR1_M0 | USART_CR1_M1,
 			((cdc_line.bParityType == USB_CDC_ODD_PARITY) ? USART_CR1_PS : 0) |
 			((cdc_line.bParityType == USB_CDC_ODD_PARITY || cdc_line.bParityType == USB_CDC_EVEN_PARITY) ? USART_CR1_PCE : 0) |
 			((data_bits == 9) ? USART_CR1_M0 : 0) |
 			((data_bits == 7) ? USART_CR1_M1 : 0));
-	SET_FIELD(USART2->CR2, USART_CR2_STOP_Msk, stop_map[cdc_line.bCharFormat]);
-	USART2->BRR = SystemCoreClock / cdc_line.dwDTERate;
+	SET_FIELD(USART1->CR2, USART_CR2_STOP_Msk, stop_map[cdc_line.bCharFormat]);
+	USART1->BRR = SystemCoreClock / cdc_line.dwDTERate;
 
 	if (reenable)
-		USART2->CR1 |= USART_CR1_UE;
+		USART1->CR1 |= USART_CR1_UE;
 }
 
 static uint16_t cdc_status_bits = 0;
@@ -196,13 +199,13 @@ static void cdc_handle_status_bits(uint16_t bits)
 	}
 }
 
-void USART2_IRQHandler(void)
+void USART1_IRQHandler(void)
 {
 	uint32_t now = millis();
 
-	if (USART2->ISR & USART_ISR_RXNE)
+	if (USART1->ISR & USART_ISR_RXNE)
 	{
-		uint16_t data = USART2->RDR;
+		uint16_t data = USART1->RDR;
 		bool okay = true;
 
 		switch (cdc_line.bParityType)
@@ -235,7 +238,7 @@ void USART2_IRQHandler(void)
 		}
 	}
 
-	if (USART2->ISR & USART_ISR_TXE)
+	if (USART1->ISR & USART_ISR_TXE)
 	{
 		if (tx_tail != tx_head)
 		{
@@ -247,15 +250,15 @@ void USART2_IRQHandler(void)
 			case USB_CDC_ODD_PARITY:
 			case USB_CDC_EVEN_PARITY:
 			case USB_CDC_NO_PARITY:
-				USART2->TDR = data;
+				USART1->TDR = data;
 				break;
 
 			case USB_CDC_MARK_PARITY:
-				USART2->TDR = data << 1 | 1;
+				USART1->TDR = data << 1 | 1;
 				break;
 
 			case USB_CDC_SPACE_PARITY:
-				USART2->TDR = data << 1 | 0;
+				USART1->TDR = data << 1 | 0;
 				break;
 			}
 
@@ -264,7 +267,7 @@ void USART2_IRQHandler(void)
 		}
 		else
 		{
-			USART2->CR1 &= ~USART_CR1_TXEIE;
+			USART1->CR1 &= ~USART_CR1_TXEIE;
 		}
 	}
 }

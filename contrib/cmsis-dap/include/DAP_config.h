@@ -57,7 +57,7 @@
 
 /// Indicate that Serial Wire Debug (SWD) communication mode is available at the Debug Access Port.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
-#define DAP_SWD                 0               ///< SWD Mode:  1 = available, 0 = not available
+#define DAP_SWD                 1               ///< SWD Mode:  1 = available, 0 = not available
 
 /// Indicate that JTAG communication mode is available at the Debug Port.
 /// This information is returned by the command \ref DAP_Info as part of <b>Capabilities</b>.
@@ -105,7 +105,7 @@
 /// The Debug Unit may be part of an evaluation board and always connected to a fixed
 /// known device.  In this case a Device Vendor and Device Name string is stored which
 /// may be used by the debugger or IDE to configure device parameters.
-#define TARGET_DEVICE_FIXED     1               ///< Target Device: 1 = known, 0 = unknown;
+#define TARGET_DEVICE_FIXED     0               ///< Target Device: 1 = known, 0 = unknown;
 
 #if TARGET_DEVICE_FIXED
 #define TARGET_DEVICE_VENDOR    "NXP"          ///< String indicating the Silicon Vendor
@@ -157,14 +157,10 @@
  */
 static __inline void PORT_JTAG_SETUP(void)
 {
-	SET_FIELD(GPIOA->ODR, 0x00d0, 0x0050);
-	SET_FIELD(GPIOA->OTYPER, 0x00d0, 0x0010);
-	SET_FIELD(GPIOA->OSPEEDR, 0x0000f300, 0x0000f300);
-	SET_FIELD(GPIOA->MODER, 0x0000f300, 0x00001100);
-	SET_FIELD(GPIOB->ODR, 0x0102, 0x0102);
-	SET_FIELD(GPIOB->OTYPER, 0x0102, 0x0000);
-	SET_FIELD(GPIOB->OSPEEDR, 0x0003000c, 0x0003000c);
-	SET_FIELD(GPIOB->MODER, 0x0003000c, 0x00010004);
+	SET_FIELD(GPIOA->ODR, 0x00fa, 0x00fa);
+	SET_FIELD(GPIOA->OTYPER, 0x00fa, 0x0082);
+	SET_FIELD(GPIOA->OSPEEDR, 0x0000ffcc, 0x0000ffcc);
+	SET_FIELD(GPIOA->MODER, 0x0000ffcc, 0x00005504);
 }
 
 /** Setup SWD I/O pins: SWCLK, SWDIO, and nRESET.
@@ -172,10 +168,12 @@ static __inline void PORT_JTAG_SETUP(void)
  - SWCLK, SWDIO, nRESET to output mode and set to default high level.
  - TDI, nTRST to HighZ mode (pins are unused in SWD mode).
  */
-static __inline void PORT_OFF(void);
 static __inline void PORT_SWD_SETUP(void)
 {
-	PORT_OFF();
+	SET_FIELD(GPIOA->ODR, 0x00fa, 0x0032);
+	SET_FIELD(GPIOA->OTYPER, 0x00fa, 0x0002);
+	SET_FIELD(GPIOA->OSPEEDR, 0x0000ffcc, 0x00000f0c);
+	SET_FIELD(GPIOA->MODER, 0x0000ffcc, 0x00000504);
 }
 
 /** Disable JTAG/SWD I/O Pins.
@@ -184,14 +182,10 @@ static __inline void PORT_SWD_SETUP(void)
  */
 static __inline void PORT_OFF(void)
 {
-	SET_FIELD(GPIOA->MODER, 0x0000f300, 0x00000100);
-	SET_FIELD(GPIOA->ODR, 0x00d0, 0x0010);
-	SET_FIELD(GPIOA->OTYPER, 0x00d0, 0x0010);
-	SET_FIELD(GPIOA->OSPEEDR, 0x0000f300, 0x00000300);
-	SET_FIELD(GPIOB->MODER, 0x0003000c, 00000000);
-	SET_FIELD(GPIOB->ODR, 0x0102, 0x0000);
-	SET_FIELD(GPIOB->OTYPER, 0x0102, 0x0000);
-	SET_FIELD(GPIOB->OSPEEDR, 0x0003000c, 0x00000000);
+	SET_FIELD(GPIOA->ODR, 0x00fa, 0x0000);
+	SET_FIELD(GPIOA->OTYPER, 0x00fa, 0x0000);
+	SET_FIELD(GPIOA->OSPEEDR, 0x0000ffcc, 0x00000000);
+	SET_FIELD(GPIOA->MODER, 0x0000ffcc, 0x00000000);
 }
 
 // SWCLK/TCK I/O pin -------------------------------------
@@ -201,7 +195,7 @@ static __inline void PORT_OFF(void)
  */
 static __forceinline uint32_t PIN_SWCLK_TCK_IN(void)
 {
-	return !!(GPIOB->IDR & 0x0002);
+	return !!(GPIOA->IDR & 0x0010);
 }
 
 /** SWCLK/TCK I/O pin: Set Output to High.
@@ -223,7 +217,7 @@ static __forceinline void PIN_SWCLK_TCK_CLR(void)
 
 static __forceinline void PIN_SWCLK_TCK_OUT(uint32_t bit)
 {
-	GPIOB->BSRR = 0x0002 << (bit ? 0 : 16);
+	GPIOA->BSRR = 0x0010 << (bit ? 0 : 16);
 }
 
 // SWDIO/TMS Pin I/O --------------------------------------
@@ -259,7 +253,7 @@ static __forceinline void PIN_SWDIO_TMS_CLR(void)
  */
 static __forceinline uint32_t PIN_SWDIO_IN(void)
 {
-	return !!(GPIOB->IDR & 0x0100);
+	return !!(GPIOA->IDR & 0x0020);
 }
 
 /** SWDIO I/O pin: Set Output (used in SWD mode only).
@@ -267,7 +261,7 @@ static __forceinline uint32_t PIN_SWDIO_IN(void)
  */
 static __forceinline void PIN_SWDIO_OUT(uint32_t bit)
 {
-	GPIOB->BSRR = 0x0100 << (bit ? 0 : 16);
+	GPIOA->BSRR = 0x0020 << (bit ? 0 : 16);
 }
 
 /** SWDIO I/O pin: Switch to Output mode (used in SWD mode only).
@@ -276,7 +270,7 @@ static __forceinline void PIN_SWDIO_OUT(uint32_t bit)
  */
 static __forceinline void PIN_SWDIO_OUT_ENABLE(void)
 {
-	;
+	SET_FIELD(GPIOA->MODER, 0x00000c00, 0x00000400);
 }
 
 /** SWDIO I/O pin: Switch to Input mode (used in SWD mode only).
@@ -285,7 +279,7 @@ static __forceinline void PIN_SWDIO_OUT_ENABLE(void)
  */
 static __forceinline void PIN_SWDIO_OUT_DISABLE(void)
 {
-	;
+	SET_FIELD(GPIOA->MODER, 0x00000c00, 0x00000000);
 }
 
 // TDI Pin I/O ---------------------------------------------
@@ -313,7 +307,7 @@ static __forceinline void PIN_TDI_OUT(uint32_t bit)
  */
 static __forceinline uint32_t PIN_TDO_IN(void)
 {
-	return !!(GPIOA->IDR & 0x0080);
+	return !!(GPIOA->IDR & 0x0010);
 }
 
 // nTRST Pin I/O -------------------------------------------
@@ -323,7 +317,7 @@ static __forceinline uint32_t PIN_TDO_IN(void)
  */
 static __forceinline uint32_t PIN_nTRST_IN(void)
 {
-	return (1U);
+	return !!(GPIOA->IDR & 0x0080);
 }
 
 /** nTRST I/O pin: Set Output.
@@ -333,7 +327,7 @@ static __forceinline uint32_t PIN_nTRST_IN(void)
  */
 static __forceinline void PIN_nTRST_OUT(uint32_t bit)
 {
-	;
+	GPIOA->BSRR = 0x0080 << (bit ? 0 : 16);
 }
 
 // nRESET Pin I/O------------------------------------------
@@ -343,7 +337,7 @@ static __forceinline void PIN_nTRST_OUT(uint32_t bit)
  */
 static __forceinline uint32_t PIN_nRESET_IN(void)
 {
-	return !!(GPIOA->IDR & 0x0010);
+	return !!(GPIOA->IDR & 0x0002);
 }
 
 /** nRESET I/O pin: Set Output.
@@ -353,7 +347,7 @@ static __forceinline uint32_t PIN_nRESET_IN(void)
  */
 static __forceinline void PIN_nRESET_OUT(uint32_t bit)
 {
-	GPIOA->BSRR = 0x0010 << (bit ? 0 : 16);
+	GPIOA->BSRR = 0x0002 << (bit ? 0 : 16);
 }
 
 ///@}
@@ -378,6 +372,7 @@ static __forceinline void PIN_nRESET_OUT(uint32_t bit)
  */
 static __inline void LED_CONNECTED_OUT(uint32_t bit)
 {
+	GPIOA->BSRR = 0x0400 << (!bit ? 0 : 16);
 }
 
 /** Debug Unit: Set status Target Running LED.
@@ -387,6 +382,7 @@ static __inline void LED_CONNECTED_OUT(uint32_t bit)
  */
 static __inline void LED_RUNNING_OUT(uint32_t bit)
 {
+	GPIOA->BSRR = 0x0200 << (!bit ? 0 : 16);
 }
 
 ///@}
@@ -411,6 +407,11 @@ static __inline void LED_RUNNING_OUT(uint32_t bit)
 static __inline void DAP_SETUP(void)
 {
 	RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN;
+	SET_FIELD(GPIOA->ODR, 0x0704, 0x0600);
+	SET_FIELD(GPIOA->OTYPER, 0x0704, 0x0600);
+	SET_FIELD(GPIOA->OSPEEDR, 0x003f0030, 0x00000000);
+	SET_FIELD(GPIOA->PUPDR, 0x003f0030, 0x00000020);
+	SET_FIELD(GPIOA->MODER, 0x003f0030, 0x00150000);
 	PORT_OFF();
 }
 
