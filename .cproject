@@ -101,7 +101,7 @@
                                     									
                                     <listOptionValue builtIn="false" value="STM32F042x6"/>
                                     									
-                                    <listOptionValue builtIn="false" value="HSE_VALUE=16000000"/>
+                                    <listOptionValue builtIn="false" value="HSE_VALUE=8000000"/>
                                     								
                                 </option>
                                 								
@@ -135,7 +135,7 @@
                                     									
                                     <listOptionValue builtIn="false" value="ARM_MATH_CM0"/>
                                     									
-                                    <listOptionValue builtIn="false" value="HSE_VALUE=16000000"/>
+                                    <listOptionValue builtIn="false" value="HSE_VALUE=8000000"/>
                                     								
                                 </option>
                                 								
